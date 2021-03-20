@@ -12,11 +12,33 @@ def GetCutsceneCameras(scene):
         ret.append(o)
     return ret
 
+def GetCamCommands(cso):
+    ret = []
+    for o in scene.objects:
+        if o.type != 'ARMATURE': continue
+        if o.parent is None: continue
+        if o.parent != cso: continue
+        if 'start_frame' not in o or 'end_frame' not in o: continue
+        ret.append(o)
+    ret.sort(key=lambda o: o.name)
+    return ret
 
 def GetCutsceneCamState(cso, frame):
     '''Returns (pos, rot_quat, fov)'''
-    return (mathutils.Vector((0.0, frame * 0.1, 0.0)),
-        mathutils.Quaternion(), 45.0)
+    cmds = GetCamCommands(cso)
+    if len(cmds) == 0:
+        return (None, None, None)
+    cur_cmd = None
+    cur_cmd_start_frame = -1
+    for c in cmds:
+        if c['start_frame'] >= frame: continue
+        if c['end_frame'] < c['start_frame'] + 2: continue
+        if c['start_frame'] > cur_cmd_start_frame:
+            cur_cmd = c
+            cur_cmd_start_frame = c['start_frame']
+    if cur_cmd is None:
+        return (None, None, None)
+    # TODO first frame of new cmd does not update camera pos at all
     
 
 @persistent
@@ -27,6 +49,7 @@ def CamMotionFrameHandler(scene):
         cso = camo.parent
         cam = camo.data
         pos, rot_quat, fov = GetCutsceneCamState(cso, scene.frame_current)
+        if pos is None: continue
         camo.location = pos
         camo.rotation_mode = 'QUATERNION'
         camo.rotation_quaternion = rot_quat

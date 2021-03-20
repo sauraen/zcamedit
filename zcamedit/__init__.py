@@ -10,16 +10,16 @@ bl_info = {
 }
 
 import bpy
-from .InitBoneProps import InitBoneProps_register, InitBoneProps_unregister
+from .ArmControls import ArmControls_register, ArmControls_unregister
 from .CamMotion import CamMotion_register, CamMotion_unregister
 
 def register():
-    InitBoneProps_register()
+    ArmControls_register()
     CamMotion_register()
 
 def unregister():
     CamMotion_unregister()
-    InitBoneProps_unregister()
+    ArmControls_unregister()
 
 if __name__ == '__main__':
     register()
