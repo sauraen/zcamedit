@@ -38,44 +38,29 @@ class ZCAMEDIT_OT_init_arm_props(bpy.types.Operator):
             if 'frames' not in eb:
                 eb['frames'] = 20
             if 'fov' not in eb:
-                eb['fov'] = 60
+                eb['fov'] = 60.0
+            if 'camroll' not in eb:
+                eb['camroll'] = 0
         return {'FINISHED'}
-        
-class ZCAMEDIT_OT_reset_bone_rolls(bpy.types.Operator):
-    '''Click to reset all bones' roll (Z rotation) to zero.'''
-    bl_idname = 'zcamedit.reset_bone_rolls'
-    bl_label = 'Reset All Bone Rolls'
-    
-    def execute(self, context):
-        arm = CheckGetArmO(self, context)
-        if armo is None:
-            return {'CANCELLED'}
-        for eb in armo.data.edit_bones:
-            eb.roll = 0.0
-        return {'FINISHED'}
-        
+
 
 class ZCAMEDIT_PT_arm_panel(bpy.types.Panel):
     bl_label = 'zcamedit Armature Controls'
     bl_idname = 'ZCAMEDIT_PT_arm_panel'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = 'armature'
+    bl_context = 'data'
     
     def draw(self, context):
         layout = self.layout
         row = layout.row()
         row.operator('zcamedit.init_arm_props')
-        row = layout.row()
-        row.operator('zcamedit.reset_bone_rolls')
 
 def ArmControls_register():
     bpy.utils.register_class(ZCAMEDIT_OT_init_arm_props)
-    bpy.utils.register_class(ZCAMEDIT_OT_reset_bone_rolls)
     bpy.utils.register_class(ZCAMEDIT_PT_arm_panel)
     
 def ArmControls_unregister():
     bpy.utils.unregister_class(ZCAMEDIT_PT_arm_panel)
-    bpy.utils.unregister_class(ZCAMEDIT_OT_reset_bone_rolls)
     bpy.utils.unregister_class(ZCAMEDIT_OT_init_arm_props)
     
