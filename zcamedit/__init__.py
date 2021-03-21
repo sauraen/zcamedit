@@ -12,12 +12,15 @@ bl_info = {
 import bpy
 from .ArmControls import ArmControls_register, ArmControls_unregister
 from .CamMotion import CamMotion_register, CamMotion_unregister
+from .ImportExportControls import ImportExportControls_register, ImportExportControls_unregister
 
 def register():
     ArmControls_register()
     CamMotion_register()
+    ImportExportControls_register()
 
 def unregister():
+    ImportExportControls_unregister()
     CamMotion_unregister()
     ArmControls_unregister()
 
