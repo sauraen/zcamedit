@@ -18,7 +18,7 @@ def GetCamCommands(scene, cso):
         if o.type != 'ARMATURE': continue
         if o.parent is None: continue
         if o.parent != cso: continue
-        if 'start_frame' not in o or 'end_frame' not in o:
+        if any(p not in o for p in ['start_frame', 'end_frame', 'rel_link']):
             print('Armature ' + o.name + ' missing custom parameters')
             continue
         ret.append(o)
