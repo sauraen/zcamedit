@@ -32,9 +32,14 @@ class ZCAMEDIT_OT_export_c(bpy.types.Operator, ExportHelper):
         description='Indent commands with tabs rather than 4 spaces. For decomp toolchain compatibility',
         default=True
     )
+    use_cscmd: BoolProperty(
+        name='Use CS_CMD defines',
+        description='Write first parameter as CS_CMD_CONTINUE or CS_CMD_STOP vs. 0 or -1',
+        default=False
+    )
     
     def execute(self, context):
-        #return CExport(context, self.filepath, use_floats, use_tabs)
+        #return CExport(context, self.filepath, use_floats, use_tabs, use_cscmd)
         return {'FINISHED'} #TODO
 
 def menu_func_import(self, context):

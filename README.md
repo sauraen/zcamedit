@@ -35,7 +35,7 @@ frame counts are negative, etc.
 The structure should look like this:
 
 #### Empty object, named "Cutscene.YourCutsceneNameHere". Represents a cutscene.
-    * Camera. Gets animated for preview.
+    * Camera. Gets animated for preview. Not exported.
     * Armature. Represents one camera command (contiguous camera shot).
         * Bone. Represents a camera key point.
         * Bone.
@@ -121,12 +121,3 @@ The roll (rotation around its axis) of the camera. For technical reasons, bone
 roll is not used as camera roll. (Also it changes whenever you edit the bone
 anyway, so it'd be kinda a pain.) Positive values turn the image clockwise
 (turn the camera body counterclockwise).
-
-#### unused_eye and unused_at
-
-These are unused data as the fourth component of the camera eye or at position
-in the cutscene data. These values are unused by the game; if creating a new
-cutscene, you can set them to 0 or any other value. However, these values are
-usually not zero in the cutscene data in game. If you are editing an existing
-cutscene, the plugin has to track them or else it would end up changing every
-camera command, even the ones you did not intend to modify.
