@@ -35,26 +35,30 @@ frame counts are negative, etc.
 The structure should look like this:
 
 #### Empty object, named "Cutscene.YourCutsceneNameHere". Represents a cutscene.
-    * Camera. Gets animated for preview. Not exported.
-    * Armature. Represents one camera command (contiguous camera shot).
-        * Bone. Represents a camera key point.
-        * Bone.
-        * Etc.
-    * Another armature if you want another camera command.
+* Camera. Gets animated for preview. Not exported.
+* Armature. Represents one camera command (contiguous camera shot).
+    * Bone. Represents a camera key point.
+    * Bone.
     * Etc.
+* Another armature if you want another camera command.
+* Etc.
 #### Another cutscene.
 #### Etc.
 
 ## Cutscene empty object
 
-This represents a cutscene. Its name in C is YourCutsceneNameHere. There can be
-as many of these as you want per blend scene / file.
+This represents a cutscene. Its name in Blender must start with "Cutscene.",
+e.g. "Cutscene.YourCutsceneNameHere", in which case its name in C will be
+YourCutsceneNameHere. There can be as many of these as you want per blend scene
+/ file.
 
 ## Preview camera
 
 Name can be anything, but each cutscene object should only have one camera as a
 child of it. This camera will get animated based on the cutscene. This is not
-exported, you can use one camera and just switch which cutscene it's in to
+exported.
+
+You can use one camera and just switch which cutscene it's parented to to
 preview different cutscenes.
 
 ## Armature / camera command
@@ -63,7 +67,8 @@ These will be sorted and processed in name order, so recommend naming them
 something like Shot01, Shot02, etc. or something else with a sortable name
 order. This is important because it's possible for a cutscene to have two
 commands starting on the same frame, and the first one in the cutscene binary
-data will get used, so we have to be able to control their order.        
+data will get used by the game engine, so we have to be able to control their
+order.        
 
 Each armature must have the following custom properties. Click "Init Armature & 
 Bone Props" in the "zcamedit Armature Controls" panel within the armature 
