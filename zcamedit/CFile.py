@@ -107,20 +107,24 @@ def CreateObject(context, name, data, select):
     return obj
 
 def CSToBlender(context, csname, poslists, atlists):
+    # Create empty cutscene object
     cs_object = CreateObject(context, 'Cutscene.' + csname, None, False)
+    # Add or move camera
     camo = None
-    if len(context.blend_data.cameras) == 0:
+    nocam = True
+    for o in context.blend_data.objects:
+        if o.type != 'CAMERA': continue
+        nocam = False
+        if o.parent is not None: continue
+        camo = o
+        break
+    if nocam:
         cam = context.blend_data.cameras.new('Camera')
         camo = CreateObject(context, 'Camera', cam, False)
-        # TODO this doesn't seem to work
-    else:
-        for o in context.blend_data.objects:
-            if o.type != 'CAMERA': continue
-            if o.parent is not None: continue
-            camo = o
-            break
+        print('Created new camera')
     if camo is not None:
         camo.parent = cs_object
+    # Main import
     for shotnum, pl in enumerate(poslists):
         # Get corresponding atlist
         al = None
@@ -133,6 +137,8 @@ def CSToBlender(context, csname, poslists, atlists):
             return False
         start_frame = pl[0]
         end_frame = al[1] if al[1] >= start_frame + 2 else pl[1]
+        context.scene.frame_start = min(context.scene.frame_start, start_frame)
+        context.scene.frame_end = max(context.scene.frame_end, end_frame)
         name = 'Shot{:02}'.format(shotnum+1)
         arm = context.blend_data.armatures.new(name)
         arm.display_type = 'STICK'
@@ -153,11 +159,13 @@ def CSToBlender(context, csname, poslists, atlists):
             bone['fov'] = at[3]
             bone['camroll'] = at[1]
         bpy.ops.object.mode_set(mode='OBJECT')
-    # TODO set playback start and end frames
     return True
 
 def ImportCFile(context, filename, scale):
-    bpy.ops.object.mode_set(mode='OBJECT')
+    if context.view_layer.objects.active is not None: 
+        bpy.ops.object.mode_set(mode='OBJECT')
+    context.scene.frame_start = 1
+    context.scene.frame_end = 3
     state = 'OutsideCS'
     with open(filename, 'r') as file:
         for l in file:
@@ -226,6 +234,7 @@ def ImportCFile(context, filename, scale):
                 continue
             print('Internal error!')
             return False
+    context.scene.frame_set(context.scene.frame_start)
     return True
 
 def ExportCFile(context, filename, scale, use_floats, use_tabs, use_cscmd):
