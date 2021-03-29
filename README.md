@@ -115,7 +115,8 @@ add bones.
 Roughly how many frames the camera should spend near this key point, though this
 is weird with the spline interpolation algorithm. This weirdness is exactly why
 the camera previewer exists. If the previewer is not behaving as you expect,
-it's probably working correctly!
+it's probably working correctly! (Of course if the behavior differs between
+Blender and in-game, please report a bug.)
 
 #### fov
 
