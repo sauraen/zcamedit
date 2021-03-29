@@ -12,7 +12,8 @@ for and enable zcamedit.
 
 ## Important things to know
 
-Your scene should be set to 20 FPS.
+Your scene should be set to 20 FPS and 320x240 render. If you import, this will
+be set up automatically.
 
 If the preview camera moves to the origin aiming downwards, this means
 "undefined camera position", which can be caused by two things.

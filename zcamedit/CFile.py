@@ -72,18 +72,16 @@ def IsGetCamCmd(l, isat, scale):
     if not (c_fov >= 0.01 and c_fov <= 179.99):
         print('FOV out of range: ' + l)
         return None
-    c_x = int(toks[4])
-    c_y = int(toks[5])
-    c_z = int(toks[6])
+    c_x, c_y, c_z = int(toks[4]), int(toks[5]), int(toks[6])
     if any(v < -0x8000 or v >= 0x8000 for v in (c_x, c_y, c_z)):
-        print('Position(s) invalid: ' + l)
+        print('Position(s) invalid: {}, {}, {}'.format(c_x, c_y, c_z))
         return None
-    c_x = float(c_x) / scale
-    c_y = float(c_y) / scale
-    c_z = float(c_z) / scale
+    # OoT: +X right, +Y up, -Z forward
+    # Blender: +X right, +Z up, +Y forward
+    c_x, c_y, c_z = float(c_x) / scale, -float(c_z) / scale, float(c_y) / scale
     return (c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z)
 
-def CreateCamCmd(c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, floats, tabs, cscmd, at=False):
+def CreateCamCmd(c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, floats, tabs, cscmd, scale, at=False):
     cmd = 'CS_CAM_FOCUS_POINT(' if at else 'CS_CAM_POS('
     if cscmd:
         c_continue = 'CS_CMD_CONTINUE' if c_continue else 'CS_CMD_STOP'
@@ -93,6 +91,10 @@ def CreateCamCmd(c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, floats, tab
     cmd += str(c_roll) + ', '
     cmd += str(c_frames) + ', '
     cmd += (str(c_fov) if floats else hex(floatBitsAsInt(c_fov))) + ', '
+    c_x, c_y, c_z = int(c_x * scale), int(c_z * scale), int(-c_y * scale)
+    if any(v < -0x8000 or v >= 0x8000 for v in (c_x, c_y, c_z)):
+        print('Position(s) too large, out of range: {}, {}, {}'.format(c_x, c_y, c_z))
+        return None
     cmd += str(c_x) + ', '
     cmd += str(c_y) + ', '
     cmd += str(c_z) + ', 0),'
@@ -106,7 +108,7 @@ def CreateObject(context, name, data, select):
         context.view_layer.objects.active = obj
     return obj
 
-def CSToBlender(context, csname, poslists, atlists):
+def CSToBlender(context, csname, poslists, atlists, scale):
     # Create empty cutscene object
     cs_object = CreateObject(context, 'Cutscene.' + csname, None, False)
     # Add or move camera
@@ -124,6 +126,7 @@ def CSToBlender(context, csname, poslists, atlists):
         print('Created new camera')
     if camo is not None:
         camo.parent = cs_object
+        camo.data.display_size = (0.15 / 56.0) * scale 
     # Main import
     for shotnum, pl in enumerate(poslists):
         # Get corresponding atlist
@@ -166,6 +169,9 @@ def ImportCFile(context, filename, scale):
         bpy.ops.object.mode_set(mode='OBJECT')
     context.scene.frame_start = 1
     context.scene.frame_end = 3
+    context.scene.render.fps = 20
+    context.scene.render.resolution_x = 320
+    context.scene.render.resolution_y = 240
     state = 'OutsideCS'
     with open(filename, 'r') as file:
         for l in file:
@@ -210,7 +216,7 @@ def ImportCFile(context, filename, scale):
                         print('Found ' + str(len(poslists)) + ' pos lists but '
                             + str(len(atlists)) + ' at lists!')
                         return False
-                    if not CSToBlender(context, csname, poslists, atlists):
+                    if not CSToBlender(context, csname, poslists, atlists, scale):
                         return False
                     state = 'OutsideCS'
                     continue
