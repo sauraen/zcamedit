@@ -1,6 +1,8 @@
 import bpy
 import struct
-import shutil
+import os, shutil
+
+from .CamMotion import GetCamCommands, GetCamBones
     
 '''From https://stackoverflow.com/questions/14431170/get-the-bits-of-a-float-in-python'''
 def intBitsAsFloat(i):
@@ -11,7 +13,7 @@ def floatBitsAsInt(f):
     return struct.unpack('>l', s)[0]
 
 class CFileIO():
-    def __init__(context, scale):
+    def __init__(self, context, scale):
         self.context, self.scale = context, scale
     
     def IsGetCutsceneStart(self, l):
@@ -23,7 +25,7 @@ class CFileIO():
         return toks[1][:-2]
         
     def IsCutsceneEnd(self, l):
-        return l.strip() == '};'
+        return l.strip() == 'CS_END(),'
         
     def IsGetCamListCmd(self, l, isat):
         l = l.strip()
@@ -82,15 +84,15 @@ class CFileIO():
         c_x, c_y, c_z = float(c_x) / self.scale, -float(c_z) / self.scale, float(c_y) / self.scale
         return (c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z)
     
-    def OnCutsceneStart(csname): pass
-    def OnCutsceneEnd(): pass
-    def OnOtherCommandOutsideCS(l): pass
-    def OnOtherCommandInsideCS(l): pass
-    def OnStartCamList(poslistinfo, atlistinfo): pass
-    def OnEndCamList(): pass
-    def OnListCmd(cmdinfo): pass
+    def OnCutsceneStart(self, csname): pass
+    def OnCutsceneEnd(self): pass
+    def OnOtherCommandOutsideCS(self, l): pass
+    def OnOtherCommandInsideCS(self, l): pass
+    def OnStartCamList(self, poslistinfo, atlistinfo): pass
+    def OnEndCamList(self): pass
+    def OnListCmd(self, cmdinfo): pass
     
-    def TraverseInputFile(filename):
+    def TraverseInputFile(self, filename):
         state = 'OutsideCS'
         with open(filename, 'r') as infile:
             for l in infile:
@@ -104,10 +106,10 @@ class CFileIO():
                         self.OnOtherCommandOutsideCS(l)
                     continue
                 if state == 'InsideList':
-                    cmdinfo = self.IsGetCamCmd(l, not listtype, scale)
+                    cmdinfo = self.IsGetCamCmd(l, not self.listtype)
                     if cmdinfo is not None:
                         raise RuntimeError('Wrong type of camera command in list! ' + l)
-                    cmdinfo = self.IsGetCamCmd(l, listtype, scale)
+                    cmdinfo = self.IsGetCamCmd(l, self.listtype)
                     if cmdinfo is not None:
                         if lastcmd:
                             raise RuntimeError('More camera commands after last cmd! ' + l)
@@ -127,6 +129,7 @@ class CFileIO():
                     poslistinfo = self.IsGetCamListCmd(l, False)
                     atlistinfo = self.IsGetCamListCmd(l, True)
                     if poslistinfo is not None or atlistinfo is not None:
+                        self.listtype = (atlistinfo is not None)
                         self.OnStartCamList(poslistinfo, atlistinfo)
                         state = 'InsideList'
                         lastcmd = False
@@ -137,10 +140,10 @@ class CFileIO():
 
 
 class CFileImport(CFileIO):
-    def __init__(context, scale):
+    def __init__(self, context, scale):
         super().__init__(context, scale)
     
-    def CreateObject(name, data, select):
+    def CreateObject(self, name, data, select):
         obj = self.context.blend_data.objects.new(name=name, object_data=data)
         self.context.view_layer.active_layer_collection.collection.objects.link(obj)
         if select:
@@ -148,9 +151,9 @@ class CFileImport(CFileIO):
             self.context.view_layer.objects.active = obj
         return obj
 
-    def CSToBlender(csname, poslists, atlists):
+    def CSToBlender(self, csname, poslists, atlists):
         # Create empty cutscene object
-        cs_object = CreateObject('Cutscene.' + csname, None, False)
+        cs_object = self.CreateObject('Cutscene.' + csname, None, False)
         # Add or move camera
         camo = None
         nocam = True
@@ -162,7 +165,7 @@ class CFileImport(CFileIO):
             break
         if nocam:
             cam = self.context.blend_data.cameras.new('Camera')
-            camo = CreateObject('Camera', cam, False)
+            camo = self.CreateObject('Camera', cam, False)
             print('Created new camera')
         if camo is not None:
             camo.parent = cs_object
@@ -186,7 +189,7 @@ class CFileImport(CFileIO):
             arm = self.context.blend_data.armatures.new(name)
             arm.display_type = 'STICK'
             arm.show_names = True
-            armo = CreateObject(name, arm, True)
+            armo = self.CreateObject(name, arm, True)
             armo.parent = cs_object
             armo['start_frame'] = start_frame
             armo['end_frame'] = end_frame
@@ -205,21 +208,20 @@ class CFileImport(CFileIO):
         return True
 
     
-    def OnCutsceneStart(csname):
+    def OnCutsceneStart(self, csname):
         self.csname = csname
         self.poslists = []
         self.atlists = []
         
-    def OnCutsceneEnd():
+    def OnCutsceneEnd(self):
         if len(self.poslists) != len(self.atlists):
             raise RuntimeError('Found ' + str(len(self.poslists)) + ' pos lists but '
                 + str(len(self.atlists)) + ' at lists!')
-        if not CSToBlender(self.csname, self.poslists, self.atlists):
+        if not self.CSToBlender(self.csname, self.poslists, self.atlists):
             raise RuntimeError('CSToBlender failed')
         
-    def OnStartCamList(poslistinfo, atlistinfo):
+    def OnStartCamList(self, poslistinfo, atlistinfo):
         self.listdata = []
-        self.listtype = (atlistinfo is not None)
         self.listinfo = atlistinfo if self.listtype else poslistinfo
         if self.listtype:
             # Make sure there's already a cam pos list with this start frame
@@ -231,7 +233,7 @@ class CFileImport(CFileIO):
                 raise RuntimeError('Started at list for start frame ' + str(atlistinfo[0])
                     + ', but there\'s no pos list with this start frame!')
         
-    def OnEndCamList():
+    def OnEndCamList(self):
         if not self.listtype:
             self.poslists.append((self.listinfo[0], self.listinfo[1], self.listdata))
         else:
@@ -241,23 +243,23 @@ class CFileImport(CFileIO):
                     + str(len(self.corresponding_poslist)) + ' commands!')
             self.atlists.append((self.listinfo[0], self.listinfo[1], self.listdata))
     
-    def OnListCmd(cmdinfo):
+    def OnListCmd(self, cmdinfo):
         self.listdata.append(cmdinfo)
     
-    def ImportCFile(filename):
-        if context.view_layer.objects.active is not None: 
+    def ImportCFile(self, filename):
+        if self.context.view_layer.objects.active is not None: 
             bpy.ops.object.mode_set(mode='OBJECT')
-        context.scene.frame_start = 1
-        context.scene.frame_end = 3
-        context.scene.render.fps = 20
-        context.scene.render.resolution_x = 320
-        context.scene.render.resolution_y = 240
+        self.context.scene.frame_start = 1
+        self.context.scene.frame_end = 3
+        self.context.scene.render.fps = 20
+        self.context.scene.render.resolution_x = 320
+        self.context.scene.render.resolution_y = 240
         try:
             self.TraverseInputFile(filename)
         except Exception as e:
             print(str(e))
             return False
-        context.scene.frame_set(context.scene.frame_start)
+        self.context.scene.frame_set(self.context.scene.frame_start)
         return True
 
 
@@ -267,13 +269,21 @@ def ImportCFile(context, filename, scale):
 
 
 class CFileExport(CFileIO):
-    def __init__(context, scale, use_floats, use_tabs, use_cscmd):
+    def __init__(self, context, scale, use_floats, use_tabs, use_cscmd):
         super().__init__(context, scale)
         self.use_floats, self.use_tabs, self.use_cscmd = use_floats, use_tabs, use_cscmd
+        self.tabstr = ('\t' if self.use_tabs else '    ')
+        self.cs_object = None
+    
+    def CreateCutsceneStartCmd(self, csname):
+        return ('CutsceneData ' if self.use_cscmd else 's32 ') + csname + '[] = {\n'
+    
+    def CreateCutsceneEndCmd(self):
+        return self.tabstr + 'CS_END(),\n'
     
     def CreateCamListCmd(self, start, end, at=False):
         cmd = 'CS_CAM_FOCUS_POINT_LIST(' if at else 'CS_CAM_POS_LIST('
-        return ('\t' if self.use_tabs else '    ') + cmd + str(start) + ', ' + str(end) + '),'
+        return self.tabstr + cmd + str(start) + ', ' + str(end) + '),\n'
 
     def CreateCamCmd(self, c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, at=False):
         cmd = 'CS_CAM_FOCUS_POINT(' if at else 'CS_CAM_POS('
@@ -281,32 +291,78 @@ class CFileExport(CFileIO):
             c_continue = 'CS_CMD_CONTINUE' if c_continue else 'CS_CMD_STOP'
         else:
             c_continue = '0' if c_continue else '-1'
-        cmd = ('\t' if self.use_tabs else '    ') * 2 + cmd + c_continue + ', '
+        cmd = self.tabstr * 2 + cmd + c_continue + ', '
         cmd += str(c_roll) + ', '
         cmd += str(c_frames) + ', '
-        cmd += (str(c_fov) if self.use_floats else hex(floatBitsAsInt(c_fov))) + ', '
-        c_x, c_y, c_z = int(c_x * self.scale), int(c_z * self.scale), int(-c_y * self.scale)
+        cmd += (str(c_fov) + 'f' if self.use_floats else hex(floatBitsAsInt(c_fov))) + ', '
+        c_x, c_y, c_z = int(round(c_x * self.scale)), int(round(c_z * self.scale)), int(round(-c_y * self.scale))
         if any(v < -0x8000 or v >= 0x8000 for v in (c_x, c_y, c_z)):
             print('Position(s) too large, out of range: {}, {}, {}'.format(c_x, c_y, c_z))
             return None
         cmd += str(c_x) + ', '
         cmd += str(c_y) + ', '
-        cmd += str(c_z) + ', 0),'
+        cmd += str(c_z) + ', 0),\n'
         return cmd
 
+    def GetCutsceneObject(self, csname):
+        for o in self.context.blend_data.objects:
+            if o.type != 'EMPTY': continue
+            if o.name != 'Cutscene.' + csname: continue
+            return o
+        return None
     
-    def OnCutsceneStart(csname): pass #TODO
-    def OnCutsceneEnd(): pass #TODO
+    def OnCutsceneStart(self, csname):
+        self.wrote_cam_list = False
+        self.cs_object = self.GetCutsceneObject(csname)
+        if self.cs_object is None:
+            print('Scene does not contain cutscene ' + csname + ' in file, skipping')
+        else:
+            print('Replacing camera commands in cutscene ' + csname)
+        self.outfile.write(self.CreateCutsceneStartCmd(csname))
+        
+    def OnCutsceneEnd(self):
+        if self.cs_object is None and not self.wrote_cam_list:
+            print('Warning, cutscene did not contain any camera commands, adding at end')
+            self.WriteCutscene()
+        self.cs_object = None
+        self.outfile.write(self.CreateCutsceneEndCmd())
     
-    def OnOtherCommandOutsideCS(l):
-        self.outfile.write(l + '\n')
+    def OnOtherCommandOutsideCS(self, l):
+        self.outfile.write(l)
     
-    def OnOtherCommandInsideCS(l):
-        self.outfile.write(l + '\n')
+    def OnOtherCommandInsideCS(self, l):
+        self.outfile.write(l)
     
-    def OnStartCamList(poslistinfo, atlistinfo): pass #TODO
+    def OnStartCamList(self, poslistinfo, atlistinfo):
+        if not self.wrote_cam_list:
+            self.WriteCutscene()
+            self.wrote_cam_list = True
     
-    def ExportCFile(filename):
+    def WriteCutscene(self):
+        if self.cs_object is None:
+            raise RuntimeError('Internal error in cutscene structure')
+        cmdlists = GetCamCommands(self.context.scene, self.cs_object)
+        if len(cmdlists) == 0:
+            raise RuntimeError('No camera command lists in cutscene ' + self.cs_object.name)
+        def WriteLists(at):
+            for l in cmdlists:
+                self.outfile.write(self.CreateCamListCmd(l['start_frame'], l['end_frame'], at))
+                bones = GetCamBones(l)
+                if bones is None:
+                    raise RuntimeError('Error in bone properties')
+                for i, b in enumerate(bones):
+                    c_continue = (i < len(bones) - 1)
+                    c_roll = b['camroll'] if at else 0
+                    c_frames = b['frames'] if at else 0
+                    c_fov = b['fov']
+                    c_pos = b.tail if at else b.head
+                    c_x, c_y, c_z = c_pos.x, c_pos.y, c_pos.z
+                    self.outfile.write(self.CreateCamCmd(
+                        c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, at))
+        WriteLists(False)
+        WriteLists(True)
+        
+    def ExportCFile(self, filename):
         tmpfile = filename + '.tmp'
         try:
             shutil.copyfile(filename, tmpfile)

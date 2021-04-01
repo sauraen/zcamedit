@@ -24,6 +24,18 @@ def GetCamCommands(scene, cso):
         ret.append(o)
     ret.sort(key=lambda o: o.name)
     return ret
+    
+def GetCamBones(cmd):
+    bones = [b for b in (cmd.data.edit_bones if cmd.mode == 'EDIT' else cmd.data.bones)]
+    for b in bones:
+        if 'frames' not in b or 'fov' not in b or 'camroll' not in b:
+            print('Bone ' + b.name + ' missing custom parameters')
+            return None
+        if b.parent is not None:
+            print('Camera armature bones are not allowed to have parent bones')
+            return None
+    bones.sort(key=lambda b: b.name)
+    return bones
 
 def UndefinedCamPos():
     return (mathutils.Vector((0.0, 0.0, 0.0)),
@@ -65,15 +77,9 @@ def GetCmdCamState(cmd, frame):
     if frame <= 0:
         print('Warning, camera command evaluated for frame ' + str(frame))
         return UndefinedCamPos()
-    bones = [b for b in (cmd.data.edit_bones if cmd.mode == 'EDIT' else cmd.data.bones)]
-    for b in bones:
-        if 'frames' not in b or 'fov' not in b or 'camroll' not in b:
-            print('Bone ' + b.name + ' missing custom parameters')
-            return UndefinedCamPos()
-        if b.parent is not None:
-            print('Camera armature bones are not allowed to have parent bones')
-            return UndefinedCamPos()
-    bones.sort(key=lambda b: b.name)
+    bones = GetCamBones(cmd)
+    if bones is None:
+        return UndefinedCamPos()
     eye, at, roll, fov = Z64SplineInterpolate(bones, frame)
     lookvec = at - eye
     if lookvec.length < 1e-6:
