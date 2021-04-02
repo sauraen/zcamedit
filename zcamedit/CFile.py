@@ -61,8 +61,8 @@ class CFileIO():
             print('Roll out of range: ' + l)
             return None
         c_frames = int(toks[2])
-        if not isat and (c_roll != 0 or c_frames != 0):
-            print('Roll and frames must be 0 in cam pos command: ' + l)
+        if not isat and c_frames != 0:
+            print('Frames must be 0 in cam pos command: ' + l)
             return None
         if toks[3].startswith('0x'):
             c_fov = int(toks[3], 16)
@@ -274,6 +274,7 @@ class CFileExport(CFileIO):
         self.use_floats, self.use_tabs, self.use_cscmd = use_floats, use_tabs, use_cscmd
         self.tabstr = ('\t' if self.use_tabs else '    ')
         self.cs_object = None
+        self.GetAllCutsceneObjects()
     
     def CreateCutsceneStartCmd(self, csname):
         return ('CutsceneData ' if self.use_cscmd else 's32 ') + csname + '[] = {\n'
@@ -304,26 +305,30 @@ class CFileExport(CFileIO):
         cmd += str(c_z) + ', 0),\n'
         return cmd
 
-    def GetCutsceneObject(self, csname):
+    def GetAllCutsceneObjects(self):
+        self.cs_objects = []
         for o in self.context.blend_data.objects:
             if o.type != 'EMPTY': continue
-            if o.name != 'Cutscene.' + csname: continue
-            return o
-        return None
+            if not o.name.startswith('Cutscene.'): continue
+            self.cs_objects.append(o)
     
     def OnCutsceneStart(self, csname):
         self.wrote_cam_list = False
-        self.cs_object = self.GetCutsceneObject(csname)
-        if self.cs_object is None:
-            print('Scene does not contain cutscene ' + csname + ' in file, skipping')
+        for o in self.cs_objects:
+            if o.name == 'Cutscene.' + csname:
+                self.cs_object = o
+                self.cs_objects.remove(o)
+                print('Replacing camera commands in cutscene ' + csname)
+                break
         else:
-            print('Replacing camera commands in cutscene ' + csname)
+            self.cs_object = None
+            print('Scene does not contain cutscene ' + csname + ' in file, skipping')
         self.outfile.write(self.CreateCutsceneStartCmd(csname))
         
     def OnCutsceneEnd(self):
-        if self.cs_object is None and not self.wrote_cam_list:
+        if self.cs_object is not None and not self.wrote_cam_list:
             print('Warning, cutscene did not contain any camera commands, adding at end')
-            self.WriteCutscene()
+            self.WriteCutscene(self.cs_object)
         self.cs_object = None
         self.outfile.write(self.CreateCutsceneEndCmd())
     
@@ -334,16 +339,14 @@ class CFileExport(CFileIO):
         self.outfile.write(l)
     
     def OnStartCamList(self, poslistinfo, atlistinfo):
-        if not self.wrote_cam_list:
-            self.WriteCutscene()
+        if self.cs_object is not None and not self.wrote_cam_list:
+            self.WriteCutscene(self.cs_object)
             self.wrote_cam_list = True
     
-    def WriteCutscene(self):
-        if self.cs_object is None:
-            raise RuntimeError('Internal error in cutscene structure')
-        cmdlists = GetCamCommands(self.context.scene, self.cs_object)
+    def WriteCutscene(self, cs_object):
+        cmdlists = GetCamCommands(self.context.scene, cs_object)
         if len(cmdlists) == 0:
-            raise RuntimeError('No camera command lists in cutscene ' + self.cs_object.name)
+            raise RuntimeError('No camera command lists in cutscene ' + cs_object.name)
         def WriteLists(at):
             for l in cmdlists:
                 self.outfile.write(self.CreateCamListCmd(l['start_frame'], l['end_frame'], at))
@@ -363,21 +366,40 @@ class CFileExport(CFileIO):
         WriteLists(True)
         
     def ExportCFile(self, filename):
-        tmpfile = filename + '.tmp'
-        try:
-            shutil.copyfile(filename, tmpfile)
-        except OSError as err:
-            print('Could not make backup file')
-            return False
+        if os.path.isfile(filename):
+            tmpfile = filename + '.tmp'
+            try:
+                shutil.copyfile(filename, tmpfile)
+            except OSError as err:
+                print('Could not make backup file')
+                return False
+        else:
+            tmpfile = None
         ret = True
         try:
             with open(filename, 'w') as self.outfile:
-                self.TraverseInputFile(tmpfile)
+                if tmpfile is not None:
+                    self.TraverseInputFile(tmpfile)
+                for o in self.cs_objects:
+                    print(o.name + ' not found in C file, appending to end. This may require manual editing afterwards.')
+                    cmdlists = GetCamCommands(self.context.scene, o)
+                    start_frame = min(c['start_frame'] for c in cmdlists)
+                    end_frame = max(c['end_frame'] for c in cmdlists)
+                    self.outfile.write('\n// clang-format off\n')
+                    self.outfile.write(self.CreateCutsceneStartCmd(o.name[9:]))
+                    self.outfile.write(self.tabstr + 'CS_BEGIN_CUTSCENE(' 
+                        + str(start_frame) + ', ' + str(end_frame) + '),\n')
+                    self.WriteCutscene(o)
+                    self.outfile.write(self.CreateCutsceneEndCmd())
+                    self.outfile.write('};\n// clang-format on\n')
         except Exception as e:
-            print(str(e) + '\nAborting, restoring original file')
-            shutil.copyfile(tmpfile, filename)
+            print(str(e))
+            if tmpfile is not None:
+                print('Aborting, restoring original file')
+                shutil.copyfile(tmpfile, filename)
             ret = False
-        os.remove(tmpfile)
+        if tmpfile is not None:
+            os.remove(tmpfile)
         return ret
 
 def ExportCFile(context, filename, scale, use_floats, use_tabs, use_cscmd):
