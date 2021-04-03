@@ -16,19 +16,72 @@ Your scene should be set to 20 FPS and 320x240 render. If you import, this will
 be set up automatically.
 
 If the preview camera moves to the origin aiming downwards, this means
-"undefined camera position", which can be caused by two things.
-1. There is some mistake in the scene structure / setup, e.g. missing custom
+"undefined camera position", which can be caused by three things.
+1. It's the first frame (or a frame before the first command starts). In these
+cases, the camera position will not be set by the cutscene at all, and therefore
+it will be whatever it last was in the game, so the previewer has no way of
+knowing what this value is.
+2. There is some mistake in the scene structure / setup, e.g. missing custom
 properties from a bone / armature. Error messages for this are printed in the
 system terminal, but to avoid spamming you with GUI error messages every frame
 in scenes you're not using this plugin in, there are no GUI error messages for
 these kinds of issues.
-2. The camera position is actually undefined. For example, on the first frame
-(frame 1, if startFrame of the first command is 0), the camera position will
-not be set by the cutscene at all, and therefore it will be whatever it last
-was in the game, so the previewer has no way of knowing what this value is.
-Other examples of actually undefined camera positions would be: if a key point
-eye and at positions are on top of each other (zero length bone), if key point
-frame counts are negative, etc.
+3. Undefined situations in the actual data, e.g. if a key point eye and at
+positions are on top of each other (zero length bone), if key point frame counts
+are negative, etc.
+
+## How the in-game cutscene camera system works
+
+The camera system in game is weird--this is partly why this previewer exists. 
+If the previewer is not behaving as you expect, it's probably working correctly!
+(Of course if the behavior differs between Blender and in-game, please report a
+bug.)
+
+First of all, the system is based on four-point spline interpolation. This
+means, in the simplest case you have four values A-B-C-D, and the output changes
+from B to C over the duration, except with the initial trajectory based on A-B
+and with the final trajectory based on C-D so you get a nice curve. This is used
+separately to interpolate eye (camera position) and at (target look-at position)
+as well as camera roll and FOV. If you have more values (with the caveats
+below), the system will move through all the values except the start and end
+values. So basically you need an extra camera point at the beginning and at the
+end to set how the camera is starting and stopping.
+
+Now, the game's version of this is weird for two reasons.
+
+#### Continue flag checking bug
+
+There is a bug (in the actual game) where when incrementing to the next set
+of key points, the key point which is checked for whether it's the last point
+or not is the last point of the new set, not the last point of the old set.
+This means that you always need an additional extra point at the end, except for
+the case of exactly four points. This is in addition to the extra point at the
+end (and the one at the beginning) which are used for the spline interpolation
+to set how the camera behaves at the start or the end. No data whatsoever is
+read from this second extra point (except for the flag that it's the last point,
+which is set up automatically on export). So you can make this the same as the
+first extra point at the end, or put it wherever else, or set its parameters to
+any values.
+
+So in summary:
+* Command has 0 points: Will fail to export, but probably crash in game
+* Command has 1/2/3 points: Command will immediately end; the position and look
+will be uninitialized values, whatever was last on the stack (may cause a 
+floating-point exception)
+* Command has 4 points: Works normally
+* Command has 5 points: Works exactly the same as 4 points; fifth point ignored
+* Command has 6 points: Works exactly the same as 5 points: sixth point ignored
+* Etc.
+
+#### Frames interpolation
+
+The number of frames actually spent between key points is interpolated in
+reciprocals *and* in a varying way between the key points. This makes predicting
+the number of frames actually spent extremely difficult unless the `frames`
+values are the same. You can think of it as it will spend *about* `frames`
+frames around each key point.
+
+
 
 
 ## Scene structure
@@ -112,11 +165,7 @@ add bones.
 
 #### frames
 
-Roughly how many frames the camera should spend near this key point, though this
-is weird with the spline interpolation algorithm. This weirdness is exactly why
-the camera previewer exists. If the previewer is not behaving as you expect,
-it's probably working correctly! (Of course if the behavior differs between
-Blender and in-game, please report a bug.)
+Roughly how many frames the camera should spend near this key point, see above.
 
 #### fov
 

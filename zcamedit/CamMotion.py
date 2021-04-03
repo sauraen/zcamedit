@@ -41,6 +41,21 @@ def UndefinedCamPos():
     return (mathutils.Vector((0.0, 0.0, 0.0)),
         mathutils.Quaternion(), 45.0)
 
+def GetSplineCoeffs(t):
+    # Reverse engineered from func_800BB0A0 in Debug ROM
+    t = min(t, 1.0) # no check for t < 0
+    oneminust = 1.0 - t
+    tsq = t * t
+    oneminustcube6 = (oneminust * oneminust * oneminust) / 6.0
+    tcube = tsq * t
+    spline2 = ((tcube * 0.5) - tsq) + 0.6666667
+    spline3 = ((tsq + t - tcube) * 0.5) + 0.16666667
+    tcube6 = tcube / 6.0
+    return oneminustcube6, spline2, spline3, tcube6
+    
+
+
+
 def Z64SplineInterpolate(bones, frame):
     # TODO replace this with the real algorithm
     if len(bones) == 0:
