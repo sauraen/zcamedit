@@ -52,12 +52,44 @@ def GetSplineCoeffs(t):
     spline3 = ((tsq + t - tcube) * 0.5) + 0.16666667
     tcube6 = tcube / 6.0
     return oneminustcube6, spline2, spline3, tcube6
-    
-
-
 
 def Z64SplineInterpolate(bones, frame):
-    # TODO replace this with the real algorithm
+    # Reverse engineered from func_800BB2B4 in Debug ROM
+    p = 0 # keyframe
+    t = 0.0 # ratioBetweenPoints
+    # Simulate cutscene for all frames up to present
+    for f in range(frame):
+        if p + 2 >= len(bones) - 1:
+            # Camera position is uninitialized
+            return UndefinedCamPos()
+        framesPoint1 = bones[p+1]['frames']
+        denomPoint1 = 1.0 / framesPoint1 if framesPoint1 != 0 else 0.0
+        framesPoint2 = bones[p+2]['frames']
+        denomPoint2 = 1.0 / framesPoint2 if framesPoint2 != 0 else 0.0
+        dt = max(t * (denomPoint2 - denomPoint1) + denomPoint1, 0.0)
+        t += dt
+        if t >= 1.0:
+            # Bug in game, should check before incrementing, not after
+            p += 1
+            if p + 3 == len(bones) - 1:
+                # In game, this is after computing the new camera position
+                # for the current frame, and changes the camera mode so its
+                # position is not updated at all in future frames.
+                break
+            t -= 1.0
+    # Spline interpolate for current situation
+    if p + 3 > len(bones) - 1:
+        if frame > 0:
+            print('Internal error in spline algorithm')
+        return UndefinedCamPos()
+    s1, s2, s3, s4 = GetSplineCoeffs(t)
+    eye = s1 * bones[p].head + s2 * bones[p+1].head + s3 * bones[p+2].head + s4 * bones[p+3].head
+    at  = s1 * bones[p].tail + s2 * bones[p+1].tail + s3 * bones[p+2].tail + s4 * bones[p+3].tail
+    roll = s1 * bones[p]['camroll'] + s2 * bones[p+1]['camroll'] + s3 * bones[p+2]['camroll'] + s4 * bones[p+3]['camroll']
+    fov = s1 * bones[p]['fov'] + s2 * bones[p+1]['fov'] + s3 * bones[p+2]['fov'] + s4 * bones[p+3]['fov']
+    return (eye, at, roll, fov)
+
+def DummyLinearInterpolate(bones, frame):
     if len(bones) == 0:
         return UndefinedCamPos()
     f = 0
@@ -75,7 +107,7 @@ def Z64SplineInterpolate(bones, frame):
         last_bone = bones[-1]
         fade = 0.0
     if last_bone is None or next_bone is None:
-        print('Internal error in spline algorithm')
+        print('Internal error in linear interpolate algorithm')
         return UndefinedCamPos()
     last_eye, next_eye = last_bone.head, next_bone.head
     last_at, next_at = last_bone.tail, next_bone.tail #"At" == "look at"
@@ -89,7 +121,7 @@ def Z64SplineInterpolate(bones, frame):
 
 def GetCmdCamState(cmd, frame):
     frame -= cmd['start_frame'] + 1
-    if frame <= 0:
+    if frame < 0:
         print('Warning, camera command evaluated for frame ' + str(frame))
         return UndefinedCamPos()
     bones = GetCamBones(cmd)
@@ -114,24 +146,16 @@ def GetCutsceneCamState(scene, cso, frame):
     cmds = GetCamCommands(scene, cso)
     if len(cmds) == 0:
         return UndefinedCamPos()
-    cur_cmd, last_cmd = None, None
+    cur_cmd = None
     cur_cmd_start_frame = -1
     for c in cmds:
         if c['start_frame'] >= frame: continue
         if c['end_frame'] < c['start_frame'] + 2: continue
         if c['start_frame'] > cur_cmd_start_frame:
-            last_cmd = cur_cmd
             cur_cmd = c
             cur_cmd_start_frame = c['start_frame']
     if cur_cmd is None:
         return UndefinedCamPos()
-    # The first frame of any camera command doesn't update the camera position
-    # and look at all. So, we have to use the same result as the previous
-    # camera command's result from one frame ago.
-    if frame == cur_cmd['start_frame'] + 1:
-        if last_cmd is None:
-            return UndefinedCamPos()
-        return GetCmdCamState(last_cmd, frame - 1)
     return GetCmdCamState(cur_cmd, frame)
     
 
