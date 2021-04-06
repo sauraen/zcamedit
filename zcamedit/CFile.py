@@ -36,7 +36,12 @@ class CFileIO():
         if len(toks) != 2 or not toks[0].isnumeric() or not toks[1].isnumeric(): 
             printf('Syntax error: ' + l)
             return None
-        return (int(toks[0]), int(toks[1]))
+        start_frame = int(toks[0])
+        end_frame = int(toks[1]))
+        if end_frame < start_frame + 2:
+            printf('Cam cmd has nonstandard start/end frames: {}, {}'.format(start_frame, end_frame))
+            return None
+        return (start_frame, end_frame)
     
     def IsGetCamCmd(self, l, isat):
         l = l.strip()
@@ -182,9 +187,6 @@ class CFileImport(CFileIO):
                 print('Internal error!')
                 return False
             start_frame = pl[0]
-            end_frame = al[1] if al[1] >= start_frame + 2 else pl[1]
-            self.context.scene.frame_start = min(self.context.scene.frame_start, start_frame)
-            self.context.scene.frame_end = max(self.context.scene.frame_end, end_frame)
             name = 'Shot{:02}'.format(shotnum+1)
             arm = self.context.blend_data.armatures.new(name)
             arm.display_type = 'STICK'
@@ -192,9 +194,9 @@ class CFileImport(CFileIO):
             armo = self.CreateObject(name, arm, True)
             armo.parent = cs_object
             armo['start_frame'] = start_frame
-            armo['end_frame'] = end_frame
             armo['rel_link'] = False #TODO
             bpy.ops.object.mode_set(mode='EDIT')
+            total_frames = 0
             for i in range(len(pl[2])):
                 pos = pl[2][i]
                 at = al[2][i]
@@ -204,7 +206,10 @@ class CFileImport(CFileIO):
                 bone['frames'] = at[2]
                 bone['fov'] = at[3]
                 bone['camroll'] = at[1]
+                total_frames += at[2]
             bpy.ops.object.mode_set(mode='OBJECT')
+            self.context.scene.frame_start = min(self.context.scene.frame_start, start_frame)
+            self.context.scene.frame_end = max(self.context.scene.frame_end, start_frame + total_frames)
         return True
 
     

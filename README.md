@@ -53,6 +53,10 @@ Now, the game's version of this is weird for two reasons.
 
 #### Continue flag checking bug
 
+If you don't care about the coding and just want to make cutscenes, you don't
+have to worry about this, the plugin takes care of it at import/export. Just
+make sure every cutscene command has at least 4 key points (bones).
+
 There is a bug (in the actual game) where when incrementing to the next set
 of key points, the key point which is checked for whether it's the last point
 or not is the last point of the new set, not the last point of the old set.
@@ -61,8 +65,7 @@ the case of exactly four points, see below). This is in addition to the extra
 point at the end (and the one at the beginning) which are used for the spline
 interpolation to set how the camera behaves at the start or the end. No data
 whatsoever is read from this second extra point (except for the flag that it's
-the last point, which is set up automatically on export). So you can set the
-positions and parameters of this point to anything at all.
+the last point, which is set up automatically on export).
 
 For the case of 4 points, the camera motion from B to C works correctly, but
 when it gets to C, it reads the continue flag out of bounds (which will be an
@@ -81,6 +84,10 @@ this command
 * Command has 5 points: Works as if it had 4 points
 * Command has 6 points: Works as if it had 5 points
 * Etc.
+
+This plugin will automatically add this second extra point at the end on export,
+and also automatically remove the extra point at the end on import unless the
+command has only four points.
 
 #### Frames interpolation
 
@@ -105,9 +112,8 @@ Also, a value of 0 means infinity, not zero--if C has `frames=0`, the camera
 will approach C but never reach it.
 
 Only the `frames` values of points B and C affect the result when the camera is
-between B and C. So, the `frames` values of the one extra point at the beginning
-(in this case A) and the 1-2 extra points at the end (in this case D) can be
-arbitrary.
+between B and C. So, the `frames` values of the one extra points at the
+beginning and the end (in this case A and D) can be arbitrary.
 
 The actual algorithm is:
 * Compute the increment in `t` value (percentage of the way from point B to C)
@@ -165,23 +171,32 @@ commands starting on the same frame, and the first one in the cutscene binary
 data will get used by the game engine, so we have to be able to control their
 order.        
 
-Each armature must have the following custom properties. Click "Init Armature & 
-Bone Props" in the "zcamedit Armature Controls" panel within the armature 
-properties window to create and initialize these. This will only create them if
-they don't exist, so clicking it again won't overwrite your frame settings if
-you've already set them.
+Each armature must have the custom properties described below. Click
+"Init Armature & Bone Props" in the "zcamedit Armature Controls" panel within
+the armature properties window to create and initialize these. This will only
+create them if they don't exist, so clicking it again won't overwrite your
+settings if you've already set them.
 
 #### start_frame
 
-The camera action actually starts on frame startFrame+1.
+The camera action actually starts on frame start_frame+1.
 
 #### end_frame
 
-end_frame is almost useless, it does not end or stop the camera command
-(running out of key points, or another camera command starting, is what
-does). It's only checked when the camera command starts. In a normal
-cutscene where time starts from 0 and advances one frame at a time, as 
-long as end_frame >= start_frame + 2, the command will work the same.
+There is also an end_frame parameter in the cutscene data, however it is almost
+useless. It does not end or stop the camera command--running out of key points,
+or another camera command starting, is what does. It's only checked when the
+camera command starts. In a normal cutscene where time starts from 0 and
+advances one frame at a time, as long as end_frame >= start_frame + 2, the
+command will work the same.
+
+So, this plugin just sets it to a "reasonable value" (the sum of the `frames`
+values of all the key points, though this is not the number of frames the
+camera command actually lasts for! This was chosen because it seems like what
+the original developers' tool did) on export, and just asserted for validity on
+import.
+
+So this is not actually a custom property in the armature--you can ignore it.
 
 #### rel_link
 
@@ -211,6 +226,6 @@ Camera FOV in degrees. 45.0 and 60.0 are some common values.
 #### camroll
 
 The roll (rotation around its axis) of the camera. For technical reasons, bone
-roll is not used as camera roll. (Also it changes whenever you edit the bone
-anyway, so it'd be kinda a pain.) Positive values turn the image clockwise
+roll is not used as camera roll. (Also bone roll changes whenever you edit the
+bone anyway, so it'd be kinda a pain.) Positive values turn the image clockwise
 (turn the camera body counterclockwise).

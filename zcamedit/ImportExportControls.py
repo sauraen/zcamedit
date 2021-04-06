@@ -3,6 +3,10 @@ from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy.props import StringProperty, BoolProperty, FloatProperty
 from .CFile import ImportCFile, ExportCFile
 
+scale_description = 'All stair steps in game are 10 units high. Assuming Hylian ' + \
+    'carpenters follow US building codes, that\'s about 17 cm or a scale of about ' + \
+    '56 if your scene is in meters.'
+
 class ZCAMEDIT_OT_import_c(bpy.types.Operator, ImportHelper):
     '''Import cutscene camera data from a Zelda 64 scene C source file.'''
     bl_idname = 'zcamedit.import_c'
@@ -13,7 +17,7 @@ class ZCAMEDIT_OT_import_c(bpy.types.Operator, ImportHelper):
     
     scale: FloatProperty(
         name='Scale',
-        description='All stair steps in game are 10 units high. Assuming Hylian carpenters follow US building codes, that\'s about 17 cm or a scale of about 56 if your scene is in meters.',
+        description=scale_description,
         soft_min=1.0, soft_max=1000.0,
         default=56.0
     )
@@ -34,7 +38,7 @@ class ZCAMEDIT_OT_export_c(bpy.types.Operator, ExportHelper):
     
     scale: FloatProperty(
         name='Scale',
-        description='All stair steps in game are 10 units high. Assuming Hylian carpenters follow US building codes, that\'s about 17 cm or a scale of about 56 if your scene is in meters.',
+        description=scale_description,
         soft_min=1.0, soft_max=1000.0,
         default=56.0
     )

@@ -18,7 +18,7 @@ def GetCamCommands(scene, cso):
         if o.type != 'ARMATURE': continue
         if o.parent is None: continue
         if o.parent != cso: continue
-        if any(p not in o for p in ['start_frame', 'end_frame', 'rel_link']):
+        if any(p not in o for p in ['start_frame', 'rel_link']):
             print('Armature ' + o.name + ' missing custom parameters')
             continue
         ret.append(o)
@@ -150,7 +150,6 @@ def GetCutsceneCamState(scene, cso, frame):
     cur_cmd_start_frame = -1
     for c in cmds:
         if c['start_frame'] >= frame: continue
-        if c['end_frame'] < c['start_frame'] + 2: continue
         if c['start_frame'] > cur_cmd_start_frame:
             cur_cmd = c
             cur_cmd_start_frame = c['start_frame']

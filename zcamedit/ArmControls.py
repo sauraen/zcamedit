@@ -30,7 +30,7 @@ class ZCAMEDIT_OT_init_arm_props(bpy.types.Operator):
         armo = CheckGetArmO(self, context)
         if armo is None:
             return {'CANCELLED'}
-        arm_props = {'start_frame': 10, 'end_frame': 100, 'rel_link': False}
+        arm_props = {'start_frame': 10, 'rel_link': False}
         bone_props = {'frames': 20, 'fov': 60.0, 'camroll': 0}
         for p in arm_props:
             if p not in armo:
