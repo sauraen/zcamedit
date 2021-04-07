@@ -23,8 +23,9 @@ class ZCAMEDIT_OT_import_c(bpy.types.Operator, ImportHelper):
     )
     
     def execute(self, context):
-        if not ImportCFile(context, self.filepath, self.scale):
-            self.report({'WARNING'}, 'Import failed, see the console for details.')
+        ret = ImportCFile(context, self.filepath, self.scale)
+        if ret is not None:
+            self.report({'WARNING'}, ret)
             return {'CANCELLED'}
         return {'FINISHED'}
 
@@ -59,8 +60,10 @@ class ZCAMEDIT_OT_export_c(bpy.types.Operator, ExportHelper):
     )
     
     def execute(self, context):
-        if not ExportCFile(context, self.filepath, self.scale, self.use_floats, self.use_tabs, self.use_cscmd):
-            self.report({'WARNING'}, 'Export failed, see the console for details.')
+        ret = ExportCFile(context, self.filepath, self.scale, 
+            self.use_floats, self.use_tabs, self.use_cscmd)
+        if ret is not None:
+            self.report({'WARNING'}, ret)
             return {'CANCELLED'}
         return {'FINISHED'}
 

@@ -3,6 +3,14 @@ import struct
 import os, shutil
 
 from .CamMotion import GetCamCommands, GetCamBones
+
+def GetCamBonesChecked(cmd):
+    bones = GetCamBones(cmd)
+    if bones is None:
+        raise RuntimeError('Error in bone properties')
+    if len(bones) < 4:
+        raise RuntimeError('Only {} bones in {}.{}'.format(len(bones), cs_object.name, l.name))
+    return bones
     
 '''From https://stackoverflow.com/questions/14431170/get-the-bits-of-a-float-in-python'''
 def intBitsAsFloat(i):
@@ -37,7 +45,7 @@ class CFileIO():
             printf('Syntax error: ' + l)
             return None
         start_frame = int(toks[0])
-        end_frame = int(toks[1]))
+        end_frame = int(toks[1])
         if end_frame < start_frame + 2:
             printf('Cam cmd has nonstandard start/end frames: {}, {}'.format(start_frame, end_frame))
             return None
@@ -196,7 +204,7 @@ class CFileImport(CFileIO):
             armo['start_frame'] = start_frame
             armo['rel_link'] = False #TODO
             bpy.ops.object.mode_set(mode='EDIT')
-            total_frames = 0
+            fake_total_frames = 0
             for i in range(len(pl[2])):
                 pos = pl[2][i]
                 at = al[2][i]
@@ -206,10 +214,10 @@ class CFileImport(CFileIO):
                 bone['frames'] = at[2]
                 bone['fov'] = at[3]
                 bone['camroll'] = at[1]
-                total_frames += at[2]
+                fake_total_frames += at[2]
             bpy.ops.object.mode_set(mode='OBJECT')
             self.context.scene.frame_start = min(self.context.scene.frame_start, start_frame)
-            self.context.scene.frame_end = max(self.context.scene.frame_end, start_frame + total_frames)
+            self.context.scene.frame_end = max(self.context.scene.frame_end, start_frame + fake_total_frames)
         return True
 
     
@@ -239,6 +247,12 @@ class CFileImport(CFileIO):
                     + ', but there\'s no pos list with this start frame!')
         
     def OnEndCamList(self):
+        if len(self.listdata) < 4:
+            raise RuntimeError('Only {} key points in camera command!'.format(len(self.listdata)))
+        if len(self.listdata) > 4:
+            # Extra dummy point at end if there's 5 or more points--remove
+            # at import and re-add at export
+            del self.listdata[-1]
         if not self.listtype:
             self.poslists.append((self.listinfo[0], self.listinfo[1], self.listdata))
         else:
@@ -262,10 +276,9 @@ class CFileImport(CFileIO):
         try:
             self.TraverseInputFile(filename)
         except Exception as e:
-            print(str(e))
-            return False
+            return str(e)
         self.context.scene.frame_set(self.context.scene.frame_start)
-        return True
+        return None
 
 
 def ImportCFile(context, filename, scale):
@@ -316,6 +329,9 @@ class CFileExport(CFileIO):
             if o.type != 'EMPTY': continue
             if not o.name.startswith('Cutscene.'): continue
             self.cs_objects.append(o)
+            
+    def GetFakeCutsceneLength(self, bones):
+        return max(2, sum(b['frames'] for b in bones))
     
     def OnCutsceneStart(self, csname):
         self.wrote_cam_list = False
@@ -354,19 +370,19 @@ class CFileExport(CFileIO):
             raise RuntimeError('No camera command lists in cutscene ' + cs_object.name)
         def WriteLists(at):
             for l in cmdlists:
-                self.outfile.write(self.CreateCamListCmd(l['start_frame'], l['end_frame'], at))
-                bones = GetCamBones(l)
-                if bones is None:
-                    raise RuntimeError('Error in bone properties')
+                bones = GetCamBonesChecked(l)
+                self.outfile.write(self.CreateCamListCmd(l['start_frame'], 
+                    l['start_frame'] + self.GetFakeCutsceneLength(bones), at))
                 for i, b in enumerate(bones):
-                    c_continue = (i < len(bones) - 1)
                     c_roll = b['camroll'] if at else 0
                     c_frames = b['frames'] if at else 0
                     c_fov = b['fov']
                     c_pos = b.tail if at else b.head
                     c_x, c_y, c_z = c_pos.x, c_pos.y, c_pos.z
                     self.outfile.write(self.CreateCamCmd(
-                        c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, at))
+                        True, c_roll, c_frames, c_fov, c_x, c_y, c_z, at))
+                # Extra dummy point
+                self.outfile.write(self.CreateCamCmd(False, 0, 0, 0.0, 0.0, 0.0, 0.0, at))
         WriteLists(False)
         WriteLists(True)
         
@@ -380,7 +396,7 @@ class CFileExport(CFileIO):
                 return False
         else:
             tmpfile = None
-        ret = True
+        ret = None
         try:
             with open(filename, 'w') as self.outfile:
                 if tmpfile is not None:
@@ -388,12 +404,17 @@ class CFileExport(CFileIO):
                 for o in self.cs_objects:
                     print(o.name + ' not found in C file, appending to end. This may require manual editing afterwards.')
                     cmdlists = GetCamCommands(self.context.scene, o)
-                    start_frame = min(c['start_frame'] for c in cmdlists)
-                    end_frame = max(c['end_frame'] for c in cmdlists)
+                    overall_start_frame = 1000000
+                    overall_end_frame = -1
+                    for c in cmdlists:
+                        overall_start_frame = min(overall_start_frame, c['start_frame'])
+                        bones = GetCamBonesChecked(c)
+                        end_frame = c['start_frame'] + self.GetFakeCutsceneLength(bones)
+                        overall_end_frame = max(overall_end_frame, end_frame)
                     self.outfile.write('\n// clang-format off\n')
                     self.outfile.write(self.CreateCutsceneStartCmd(o.name[9:]))
                     self.outfile.write(self.tabstr + 'CS_BEGIN_CUTSCENE(' 
-                        + str(start_frame) + ', ' + str(end_frame) + '),\n')
+                        + str(overall_start_frame) + ', ' + str(overall_end_frame) + '),\n')
                     self.WriteCutscene(o)
                     self.outfile.write(self.CreateCutsceneEndCmd())
                     self.outfile.write('};\n// clang-format on\n')
@@ -402,7 +423,7 @@ class CFileExport(CFileIO):
             if tmpfile is not None:
                 print('Aborting, restoring original file')
                 shutil.copyfile(tmpfile, filename)
-            ret = False
+            ret = str(e)
         if tmpfile is not None:
             os.remove(tmpfile)
         return ret

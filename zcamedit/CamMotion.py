@@ -40,6 +40,10 @@ def GetCamBones(cmd):
 def UndefinedCamPos():
     return (mathutils.Vector((0.0, 0.0, 0.0)),
         mathutils.Quaternion(), 45.0)
+        
+def UndefinedCamPosAt():
+    return (mathutils.Vector((0.0, 0.0, 0.0)), mathutils.Vector((0.0, 0.0, -1.0)),
+        0.0, 45.0)
 
 def GetSplineCoeffs(t):
     # Reverse engineered from func_800BB0A0 in Debug ROM
@@ -61,27 +65,25 @@ def Z64SplineInterpolate(bones, frame):
     for f in range(frame):
         if p + 2 >= len(bones) - 1:
             # Camera position is uninitialized
-            return UndefinedCamPos()
+            return UndefinedCamPosAt()
         framesPoint1 = bones[p+1]['frames']
         denomPoint1 = 1.0 / framesPoint1 if framesPoint1 != 0 else 0.0
         framesPoint2 = bones[p+2]['frames']
         denomPoint2 = 1.0 / framesPoint2 if framesPoint2 != 0 else 0.0
         dt = max(t * (denomPoint2 - denomPoint1) + denomPoint1, 0.0)
-        t += dt
-        if t >= 1.0:
-            # Bug in game, should check before incrementing, not after
-            p += 1
+        # Different from in game; we remove the extra dummy point at import
+        # and add it at export.
+        if t + dt >= 1.0:
             if p + 3 == len(bones) - 1:
-                # In game, this is after computing the new camera position
-                # for the current frame, and changes the camera mode so its
-                # position is not updated at all in future frames.
                 break
             t -= 1.0
+            p += 1
+        t += dt
     # Spline interpolate for current situation
     if p + 3 > len(bones) - 1:
         if frame > 0:
             print('Internal error in spline algorithm')
-        return UndefinedCamPos()
+        return UndefinedCamPosAt()
     s1, s2, s3, s4 = GetSplineCoeffs(t)
     eye = s1 * bones[p].head + s2 * bones[p+1].head + s3 * bones[p+2].head + s4 * bones[p+3].head
     at  = s1 * bones[p].tail + s2 * bones[p+1].tail + s3 * bones[p+2].tail + s4 * bones[p+3].tail
@@ -91,7 +93,7 @@ def Z64SplineInterpolate(bones, frame):
 
 def DummyLinearInterpolate(bones, frame):
     if len(bones) == 0:
-        return UndefinedCamPos()
+        return UndefinedCamPosAt()
     f = 0
     last_bone = None
     next_bone = bones[0]
@@ -108,7 +110,7 @@ def DummyLinearInterpolate(bones, frame):
         fade = 0.0
     if last_bone is None or next_bone is None:
         print('Internal error in linear interpolate algorithm')
-        return UndefinedCamPos()
+        return UndefinedCamPosAt()
     last_eye, next_eye = last_bone.head, next_bone.head
     last_at, next_at = last_bone.tail, next_bone.tail #"At" == "look at"
     last_roll, next_roll = last_bone['camroll'], next_bone['camroll']
