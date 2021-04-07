@@ -372,7 +372,7 @@ class CFileExport(CFileIO):
             for l in cmdlists:
                 bones = GetCamBonesChecked(l)
                 self.outfile.write(self.CreateCamListCmd(l['start_frame'], 
-                    l['start_frame'] + self.GetFakeCutsceneLength(bones), at))
+                    l['start_frame'] + self.GetFakeCutsceneLength(bones) + 1, at))
                 for i, b in enumerate(bones):
                     c_roll = b['camroll'] if at else 0
                     c_frames = b['frames'] if at else 0
@@ -409,7 +409,7 @@ class CFileExport(CFileIO):
                     for c in cmdlists:
                         overall_start_frame = min(overall_start_frame, c['start_frame'])
                         bones = GetCamBonesChecked(c)
-                        end_frame = c['start_frame'] + self.GetFakeCutsceneLength(bones)
+                        end_frame = c['start_frame'] + self.GetFakeCutsceneLength(bones) + 1
                         overall_end_frame = max(overall_end_frame, end_frame)
                     self.outfile.write('\n// clang-format off\n')
                     self.outfile.write(self.CreateCutsceneStartCmd(o.name[9:]))

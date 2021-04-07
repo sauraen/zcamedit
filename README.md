@@ -21,11 +21,10 @@ If the preview camera moves to the origin aiming downwards, this means
 position will not be set by the cutscene at all, and therefore it will be
 whatever it last was in the game, so the previewer has no way of knowing what
 this value is.
-2. There are less than 4 points in a camera command, or there are 4 points but
-the command ran out (see below). The camera position is undefined in these
-cases (will be some garbage data on the stack). Or, other undefined situations
-like key point eye and at positions are on top of each other (zero length bone),
-etc.
+2. There are less than 4 points in a camera command. The camera position is
+undefined in this case (will be some garbage data on the stack). Or, other
+undefined situations like key point eye and at positions are on top of each
+other (zero length bone), etc.
 3. There is some mistake in the scene structure / setup, e.g. missing custom
 properties from a bone / armature. Error messages for this are printed in the
 system terminal, but to avoid spamming you with GUI error messages every frame
@@ -184,24 +183,28 @@ The camera action actually starts on frame start_frame+1.
 #### end_frame
 
 There is also an end_frame parameter in the cutscene data, however it is almost
-useless. It does not end or stop the camera command--running out of key points,
-or another camera command starting, is what does. It's only checked when the
-camera command starts. In a normal cutscene where time starts from 0 and
-advances one frame at a time, as long as end_frame >= start_frame + 2, the
+useless, so it is not included as a custom property in the armature. If you
+don't care about the coding, you can skip the rest of this section.
+
+The end_frame parameter does not end or stop the camera command--running out of
+key points, or another camera command starting, is what does. It's only checked
+when the camera command starts. In a normal cutscene where time starts from 0
+and advances one frame at a time, as long as end_frame >= start_frame + 2, the
 command will work the same.
 
-So, this plugin just sets it to a "reasonable value" (the sum of the `frames`
-values of all the key points, though this is not the number of frames the
-camera command actually lasts for! This was chosen because it seems like what
-the original developers' tool did) on export, and just asserted for validity on
-import.
-
-So this is not actually a custom property in the armature--you can ignore it.
+So, this plugin just sets it to a "reasonable value" on export, and just
+asserted for validity on import. The "reasonable value" chosen is the sum of the
+`frames` values of all the key points plus 1, though this is not the number of
+frames the camera command actually lasts for! It seems the original developers'
+tool used the sum of all the points--including the second extra point--as the
+end_frame parameter for CS_CAM_FOCUS_POINT_LIST, and used the sum of all the
+points without the second extra point, plus 1, for the CS_CAM_POS_LIST. (Oh
+yeah, did I mention they're different?)
 
 #### rel_link
 
 rel_link is a boolean for whether the camera command is normal (False)
-(0x01 and 0x02) or relative to Link (True) (0x05 and 0x06).
+(0x01 and 0x02) or relative to Link (True) (0x05 and 0x06). Not yet implemented.
 
 ## Bone
 
