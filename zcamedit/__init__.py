@@ -11,20 +11,20 @@ bl_info = {
 
 import bpy
 from .ArmControls import ArmControls_register, ArmControls_unregister
-from .CamMotion import CamMotion_register, CamMotion_unregister
+from .Preview import Preview_register, Preview_unregister
 from .ImportExportControls import ImportExportControls_register, ImportExportControls_unregister
-from .CSSetup import CSSetup_register, CSSetup_unregister
+from .CSControls import CSControls_register, CSControls_unregister
 
 def register():
     ArmControls_register()
-    CamMotion_register()
+    Preview_register()
     ImportExportControls_register()
-    CSSetup_register()
+    CSControls_register()
 
 def unregister():
-    CSSetup_unregister()
+    CSControls_unregister()
     ImportExportControls_unregister()
-    CamMotion_unregister()
+    Preview_unregister()
     ArmControls_unregister()
 
 if __name__ == '__main__':

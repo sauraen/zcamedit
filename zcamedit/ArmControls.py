@@ -2,22 +2,19 @@ import bpy
 
 def CheckGetArmO(op, context):
     '''Check if we are editing an armature in the appropriate hierarchy.'''
-    if len(context.selected_objects) != 1:
-        op.report({'WARNING'}, 'Must have only one object selected')
-        return None
-    armo = context.selected_objects[0]
-    if armo.type != 'ARMATURE' or armo.mode != 'EDIT':
-        op.report({'WARNING'}, 'Must be in Edit Mode for an armature')
+    armo = context.view_layer.objects.active
+    if armo is None or armo.type != 'ARMATURE' or armo.mode != 'EDIT':
+        if op: op.report({'WARNING'}, 'Must be in Edit Mode for an armature')
         return None
     if armo.parent is None or armo.parent.type != 'EMPTY':
-        op.report({'WARNING'}, 'Armature must be child of empty object (Cutscene)')
+        if op: op.report({'WARNING'}, 'Armature must be child of empty object (Cutscene)')
         return None
     if not armo.parent.name.startswith('Cutscene.'):
-        op.report({'WARNING'}, 'Empty parent must be named "Cutscene.<YourCutsceneName>"')
+        if op: op.report({'WARNING'}, 'Empty parent must be named "Cutscene.<YourCutsceneName>"')
         return None
     arm = armo.data
     if len(arm.edit_bones) == 0:
-        op.report({'WARNING'}, 'Armature must contain some bones')
+        if op: op.report({'WARNING'}, 'Armature must contain some bones')
         return None
     return armo
 
@@ -51,8 +48,11 @@ class ZCAMEDIT_PT_arm_panel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        row = layout.row()
-        row.operator('zcamedit.init_arm_props')
+        if not CheckGetArmO(None, context):
+            layout.label(text='Go into Edit Mode for an armature')
+            layout.label(text='Must be parented to cutscene object')
+        else:
+            layout.operator('zcamedit.init_arm_props')
 
 def ArmControls_register():
     bpy.utils.register_class(ZCAMEDIT_OT_init_arm_props)

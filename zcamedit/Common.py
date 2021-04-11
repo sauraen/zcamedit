@@ -1,5 +1,7 @@
 import struct
-import bpy
+import random
+
+import bpy, mathutils
 from bpy.props import FloatProperty, EnumProperty
 
 def MetersToBlend(context, v):
@@ -60,6 +62,62 @@ def GetCSStartFakeEnd(context, cs_object):
         cs_endf = max(cs_endf, end_frame)
     return cs_startf, cs_endf
     
+def GetNameActorID(name):
+    name = name.split('.')[0]
+    if name == 'Link' or name == 'Player':
+        return -1
+    elif name.startswith('NPC'):
+        name = name[3:]
+    elif name.startswith('Actor'):
+        name = name[5:]
+    else:
+        return None
+    if not name.isnumeric(): return None
+    try:
+        return int(name)
+    except ValueError:
+        return None
+    
+def GetActionListPoints(scene, al_object):
+    ret = []
+    for o in scene.objects:
+        if o.parent != al_object or o.type != 'EMPTY': continue
+        if 'start_frame' not in o: continue
+        ret.append(o)
+    ret.sort(key=lambda o: o['start_frame'])
+    return ret
+    
+def GetActionListStartFrame(scene, al_object):
+    points = GetActionListPoints(scene, al_object)
+    if len(points) < 2: return 1000000
+    return points[0]['start_frame']
+    
+def GetActionListsForID(scene, cs_object, actorid):
+    ret = []
+    for o in scene.objects:
+        if o.parent != cs_object or o.type != 'EMPTY': continue
+        if o.name.startswith('Path.'):
+            name = o.name[5:]
+        elif o.name.startswith('ActionList.'):
+            name = o.name[11:]
+        else:
+            continue
+        if GetNameActorID(name) != actorid: continue
+        ret.append(o)
+    ret.sort(key=lambda o: GetActionListStartFrame(scene, o))
+    return ret
+    
+def GetObjectUniqueName(context, basename):
+    num = 1
+    while True:
+        name = basename + '.{:02}'.format(num)
+        for o in context.scene.objects:
+            if o.name == name:
+                break
+        else:
+            return name
+        num += 1
+    
 def CreateObject(context, name, data, select):
     obj = context.blend_data.objects.new(name=name, object_data=data)
     context.view_layer.active_layer_collection.collection.objects.link(obj)
@@ -86,19 +144,22 @@ def InitCS(context, cs_object):
         camo.parent = cs_object
         camo.data.display_size = MetersToBlend(context, 0.25)
         camo.data.passepartout_alpha = 0.95
+        camo.data.clip_start = 1e-3
+        camo.data.clip_end = 200.0
     # Link preview
-    link_age = context.scene.zcamedit_previewlinkage
-    link_height = MetersToBlend(context, 1.7 if link_age == 'link_adult' else 1.3)
     for o in context.blend_data.objects:
         if o.type != 'EMPTY': continue
         if o.parent != cs_object: continue
-        if o.name != 'LinkPreview': continue
+        if o.name != 'Preview.Link': continue
         link_preview = o
         break
     else:
-        link_preview = CreateObject(context, 'LinkPreview', None, False)
-    link_preview.empty_display_size = link_height
+        link_preview = CreateObject(context, 'Preview.Link', None, False)
+        link_preview.parent = cs_object
+    link_age = context.scene.zcamedit_previewlinkage
+    link_height = MetersToBlend(context, 1.7 if link_age == 'link_adult' else 1.3)
     link_preview.empty_display_type = 'SINGLE_ARROW'
+    link_preview.empty_display_size = link_height
     # Other setup
     cs_startf, cs_endf = GetCSStartFakeEnd(context, cs_object)
     context.scene.frame_start = min(cs_startf, context.scene.frame_start)
@@ -106,3 +167,18 @@ def InitCS(context, cs_object):
     context.scene.render.fps = 20
     context.scene.render.resolution_x = 320
     context.scene.render.resolution_y = 240
+
+def CreateActorAction(context, basename, cs_object):
+    al_object = CreateObject(context, GetObjectUniqueName(context, basename), None, True)
+    al_object.parent = cs_object
+    x = random.random() * 40.0 - 20.0
+    point1 = CreateObject(context, 'Point01', None, False)
+    point1.parent = al_object
+    point1.empty_display_type = 'ARROWS'
+    point1.location = mathutils.Vector((x, -10.0, 0.0))
+    point1['start_frame'] = 0
+    point2 = CreateObject(context, 'Point02', None, False)
+    point2.parent = al_object
+    point2.empty_display_type = 'ARROWS'
+    point2.location = mathutils.Vector((x, 10.0, 0.0))
+    point2['start_frame'] = 40

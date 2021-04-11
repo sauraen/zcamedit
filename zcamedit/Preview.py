@@ -5,8 +5,7 @@ from bpy.app.handlers import persistent
 from .Common import *
 
 def UndefinedCamPos():
-    return (mathutils.Vector((0.0, 0.0, 0.0)),
-        mathutils.Quaternion(), 45.0)
+    return (mathutils.Vector((0.0, 0.0, 0.0)), mathutils.Quaternion(), 45.0)
         
 def UndefinedCamPosAt():
     return (mathutils.Vector((0.0, 0.0, 0.0)), mathutils.Vector((0.0, 0.0, -1.0)),
@@ -125,34 +124,54 @@ def GetCutsceneCamState(scene, cso, frame):
         return UndefinedCamPos()
     return GetCmdCamState(cur_cmd, frame)
     
-def GetCutsceneCameras(scene):
-    ret = []
+def GetActorState(scene, cs_object, actorid, frame):
+    actionlists = GetActionListsForID(scene, cs_object, actorid)
+    pos = mathutils.Vector((0.0, 0.0, 0.0))
+    rot = mathutils.Vector((0.0, 0.0, 0.0))
+    for al in actionlists:
+        points = GetActionListPoints(scene, al)
+        if len(points) < 2: continue
+        for i in range(len(points)-1):
+            s = points[i]['start_frame']
+            e = points[i+1]['start_frame']
+            if e <= s: continue
+            if frame <= s: continue
+            if frame <= e:
+                pos = points[i].location * (e - frame) + points[i+1].location * (frame - s)
+                pos /= e - s
+                rot = points[i].rotation_euler
+                return pos, rot
+            elif i == len(points)-2:
+                # If went off the end, use last position
+                pos = points[i+1].location
+                rot = points[i].rotation_euler
+    return pos, rot
+    
+@persistent
+def PreviewFrameHandler(scene):
     for o in scene.objects:
-        if o.type != 'CAMERA': continue
         if o.parent is None: continue
         if o.parent.type != 'EMPTY': continue
         if not o.parent.name.startswith('Cutscene.'): continue
-        ret.append(o)
-    return ret
-    
-@persistent
-def CamMotionFrameHandler(scene):
-    cams = GetCutsceneCameras(scene)
-    for camo in cams:
-        cso = camo.parent
-        cam = camo.data
-        pos, rot_quat, fov = GetCutsceneCamState(scene, cso, scene.frame_current)
-        if pos is None: continue
-        camo.location = pos
-        camo.rotation_mode = 'QUATERNION'
-        camo.rotation_quaternion = rot_quat
-        cam.angle = math.pi * fov / 180.0
-        cam.clip_start = 1e-3
-        cam.clip_end = 200.0
+        if o.type == 'CAMERA':
+            pos, rot_quat, fov = GetCutsceneCamState(scene, o.parent, scene.frame_current)
+            if pos is None: continue
+            o.location = pos
+            o.rotation_mode = 'QUATERNION'
+            o.rotation_quaternion = rot_quat
+            o.data.angle = math.pi * fov / 180.0
+        if o.type == 'EMPTY' and o.name.startswith('Preview.'):
+            actorid = GetNameActorID(o.name[8:])
+            if actorid is None: continue
+            pos, rot = GetActorState(scene, o.parent, actorid, scene.frame_current)
+            if pos is None: continue
+            o.location = pos
+            o.rotation_mode = 'XYZ'
+            o.rotation_euler = rot
 
-def CamMotion_register():
-    bpy.app.handlers.frame_change_pre.append(CamMotionFrameHandler)
+def Preview_register():
+    bpy.app.handlers.frame_change_pre.append(PreviewFrameHandler)
 
-def CamMotion_unregister():
-    if CamMotionFrameHandler in bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.remove(CamMotionFrameHandler)
+def Preview_unregister():
+    if PreviewFrameHandler in bpy.app.handlers.frame_change_pre:
+        bpy.app.handlers.frame_change_pre.remove(PreviewFrameHandler)
