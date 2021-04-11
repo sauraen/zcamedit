@@ -2,40 +2,7 @@ import bpy
 import math, mathutils
 from bpy.app.handlers import persistent
 
-def GetCutsceneCameras(scene):
-    ret = []
-    for o in scene.objects:
-        if o.type != 'CAMERA': continue
-        if o.parent is None: continue
-        if o.parent.type != 'EMPTY': continue
-        if not o.parent.name.startswith('Cutscene.'): continue
-        ret.append(o)
-    return ret
-
-def GetCamCommands(scene, cso):
-    ret = []
-    for o in scene.objects:
-        if o.type != 'ARMATURE': continue
-        if o.parent is None: continue
-        if o.parent != cso: continue
-        if any(p not in o for p in ['start_frame', 'rel_link']):
-            print('Armature ' + o.name + ' missing custom parameters')
-            continue
-        ret.append(o)
-    ret.sort(key=lambda o: o.name)
-    return ret
-    
-def GetCamBones(cmd):
-    bones = [b for b in (cmd.data.edit_bones if cmd.mode == 'EDIT' else cmd.data.bones)]
-    for b in bones:
-        if 'frames' not in b or 'fov' not in b or 'camroll' not in b:
-            print('Bone ' + b.name + ' missing custom parameters')
-            return None
-        if b.parent is not None:
-            print('Camera armature bones are not allowed to have parent bones')
-            return None
-    bones.sort(key=lambda b: b.name)
-    return bones
+from .Common import *
 
 def UndefinedCamPos():
     return (mathutils.Vector((0.0, 0.0, 0.0)),
@@ -142,7 +109,6 @@ def GetCmdCamState(cmd, frame):
     qyaw   = mathutils.Quaternion(-uz, math.atan2(lookvec.dot(ux), lookvec.dot(uy)))
     return (eye, qyaw @ qpitch @ qroll, fov)
     
-
 def GetCutsceneCamState(scene, cso, frame):
     '''Returns (pos, rot_quat, fov)'''
     cmds = GetCamCommands(scene, cso)
@@ -159,7 +125,16 @@ def GetCutsceneCamState(scene, cso, frame):
         return UndefinedCamPos()
     return GetCmdCamState(cur_cmd, frame)
     
-
+def GetCutsceneCameras(scene):
+    ret = []
+    for o in scene.objects:
+        if o.type != 'CAMERA': continue
+        if o.parent is None: continue
+        if o.parent.type != 'EMPTY': continue
+        if not o.parent.name.startswith('Cutscene.'): continue
+        ret.append(o)
+    return ret
+    
 @persistent
 def CamMotionFrameHandler(scene):
     cams = GetCutsceneCameras(scene)
@@ -174,7 +149,6 @@ def CamMotionFrameHandler(scene):
         cam.angle = math.pi * fov / 180.0
         cam.clip_start = 1e-3
         cam.clip_end = 200.0
-
 
 def CamMotion_register():
     bpy.app.handlers.frame_change_pre.append(CamMotionFrameHandler)

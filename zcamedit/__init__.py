@@ -13,13 +13,16 @@ import bpy
 from .ArmControls import ArmControls_register, ArmControls_unregister
 from .CamMotion import CamMotion_register, CamMotion_unregister
 from .ImportExportControls import ImportExportControls_register, ImportExportControls_unregister
+from .CSSetup import CSSetup_register, CSSetup_unregister
 
 def register():
     ArmControls_register()
     CamMotion_register()
     ImportExportControls_register()
+    CSSetup_register()
 
 def unregister():
+    CSSetup_unregister()
     ImportExportControls_unregister()
     CamMotion_unregister()
     ArmControls_unregister()

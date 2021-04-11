@@ -1,11 +1,9 @@
 import bpy
 from bpy_extras.io_utils import ImportHelper, ExportHelper
 from bpy.props import StringProperty, BoolProperty, FloatProperty
-from .CFile import ImportCFile, ExportCFile
 
-scale_description = 'All stair steps in game are 10 units high. Assuming Hylian ' + \
-    'carpenters follow US building codes, that\'s about 17 cm or a scale of about ' + \
-    '56 if your scene is in meters.'
+from .Common import *
+from .CFile import ImportCFile, ExportCFile
 
 class ZCAMEDIT_OT_import_c(bpy.types.Operator, ImportHelper):
     '''Import cutscene camera data from a Zelda 64 scene C source file.'''
@@ -15,15 +13,8 @@ class ZCAMEDIT_OT_import_c(bpy.types.Operator, ImportHelper):
     filename_ext = '.c'
     filter_glob: StringProperty(default='*.c', options={'HIDDEN'}, maxlen=4096)
     
-    scale: FloatProperty(
-        name='Scale',
-        description=scale_description,
-        soft_min=1.0, soft_max=1000.0,
-        default=56.0
-    )
-    
     def execute(self, context):
-        ret = ImportCFile(context, self.filepath, self.scale)
+        ret = ImportCFile(context, self.filepath)
         if ret is not None:
             self.report({'WARNING'}, ret)
             return {'CANCELLED'}
@@ -37,12 +28,6 @@ class ZCAMEDIT_OT_export_c(bpy.types.Operator, ExportHelper):
     filename_ext = '.c'
     filter_glob: StringProperty(default='*.c', options={'HIDDEN'}, maxlen=4096)
     
-    scale: FloatProperty(
-        name='Scale',
-        description=scale_description,
-        soft_min=1.0, soft_max=1000.0,
-        default=56.0
-    )
     use_floats: BoolProperty(
         name='Use Floats',
         description='Write FOV value as floating point (e.g. 45.0f). If False, write as integer (e.g. 0x42340000)',
@@ -60,7 +45,7 @@ class ZCAMEDIT_OT_export_c(bpy.types.Operator, ExportHelper):
     )
     
     def execute(self, context):
-        ret = ExportCFile(context, self.filepath, self.scale, 
+        ret = ExportCFile(context, self.filepath, 
             self.use_floats, self.use_tabs, self.use_cscmd)
         if ret is not None:
             self.report({'WARNING'}, ret)

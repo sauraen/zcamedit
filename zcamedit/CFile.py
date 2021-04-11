@@ -1,28 +1,11 @@
 import bpy
-import struct
 import os, shutil
 
-from .CamMotion import GetCamCommands, GetCamBones
-
-def GetCamBonesChecked(cmd):
-    bones = GetCamBones(cmd)
-    if bones is None:
-        raise RuntimeError('Error in bone properties')
-    if len(bones) < 4:
-        raise RuntimeError('Only {} bones in {}.{}'.format(len(bones), cs_object.name, l.name))
-    return bones
-    
-'''From https://stackoverflow.com/questions/14431170/get-the-bits-of-a-float-in-python'''
-def intBitsAsFloat(i):
-    s = struct.pack('>l', i)
-    return struct.unpack('>f', s)[0]
-def floatBitsAsInt(f):
-    s = struct.pack('>f', f)
-    return struct.unpack('>l', s)[0]
+from .Common import *
 
 class CFileIO():
-    def __init__(self, context, scale):
-        self.context, self.scale = context, scale
+    def __init__(self, context):
+        self.context, self.scale = context, context.scene.ootBlenderScale
     
     def IsGetCutsceneStart(self, l):
         toks = [t for t in l.strip().split(' ') if t]
@@ -153,36 +136,12 @@ class CFileIO():
 
 
 class CFileImport(CFileIO):
-    def __init__(self, context, scale):
-        super().__init__(context, scale)
+    def __init__(self, context):
+        super().__init__(context)
     
-    def CreateObject(self, name, data, select):
-        obj = self.context.blend_data.objects.new(name=name, object_data=data)
-        self.context.view_layer.active_layer_collection.collection.objects.link(obj)
-        if select:
-            obj.select_set(True)
-            self.context.view_layer.objects.active = obj
-        return obj
-
     def CSToBlender(self, csname, poslists, atlists):
         # Create empty cutscene object
-        cs_object = self.CreateObject('Cutscene.' + csname, None, False)
-        # Add or move camera
-        camo = None
-        nocam = True
-        for o in self.context.blend_data.objects:
-            if o.type != 'CAMERA': continue
-            nocam = False
-            if o.parent is not None: continue
-            camo = o
-            break
-        if nocam:
-            cam = self.context.blend_data.cameras.new('Camera')
-            camo = self.CreateObject('Camera', cam, False)
-            print('Created new camera')
-        if camo is not None:
-            camo.parent = cs_object
-            camo.data.display_size = (0.15 / 56.0) * self.scale 
+        cs_object = CreateObject(self.context, 'Cutscene.' + csname, None, False)
         # Main import
         for shotnum, pl in enumerate(poslists):
             # Get corresponding atlist
@@ -194,17 +153,15 @@ class CFileImport(CFileIO):
             if al is None or len(pl[2]) != len(al[2]):
                 print('Internal error!')
                 return False
-            start_frame = pl[0]
             name = 'Shot{:02}'.format(shotnum+1)
             arm = self.context.blend_data.armatures.new(name)
             arm.display_type = 'STICK'
             arm.show_names = True
-            armo = self.CreateObject(name, arm, True)
+            armo = CreateObject(self.context, name, arm, True)
             armo.parent = cs_object
-            armo['start_frame'] = start_frame
+            armo['start_frame'] = pl[0]
             armo['rel_link'] = False #TODO
             bpy.ops.object.mode_set(mode='EDIT')
-            fake_total_frames = 0
             for i in range(len(pl[2])):
                 pos = pl[2][i]
                 at = al[2][i]
@@ -214,12 +171,10 @@ class CFileImport(CFileIO):
                 bone['frames'] = at[2]
                 bone['fov'] = at[3]
                 bone['camroll'] = at[1]
-                fake_total_frames += at[2]
             bpy.ops.object.mode_set(mode='OBJECT')
-            self.context.scene.frame_start = min(self.context.scene.frame_start, start_frame)
-            self.context.scene.frame_end = max(self.context.scene.frame_end, start_frame + fake_total_frames)
+        # Init at end to get timing info
+        InitCS(self.context, cs_object)
         return True
-
     
     def OnCutsceneStart(self, csname):
         self.csname = csname
@@ -268,11 +223,6 @@ class CFileImport(CFileIO):
     def ImportCFile(self, filename):
         if self.context.view_layer.objects.active is not None: 
             bpy.ops.object.mode_set(mode='OBJECT')
-        self.context.scene.frame_start = 1
-        self.context.scene.frame_end = 3
-        self.context.scene.render.fps = 20
-        self.context.scene.render.resolution_x = 320
-        self.context.scene.render.resolution_y = 240
         try:
             self.TraverseInputFile(filename)
         except Exception as e:
@@ -280,15 +230,14 @@ class CFileImport(CFileIO):
         self.context.scene.frame_set(self.context.scene.frame_start)
         return None
 
-
-def ImportCFile(context, filename, scale):
-    im = CFileImport(context, scale)
+def ImportCFile(context, filename):
+    im = CFileImport(context)
     return im.ImportCFile(filename)
 
 
 class CFileExport(CFileIO):
-    def __init__(self, context, scale, use_floats, use_tabs, use_cscmd):
-        super().__init__(context, scale)
+    def __init__(self, context, use_floats, use_tabs, use_cscmd):
+        super().__init__(context)
         self.use_floats, self.use_tabs, self.use_cscmd = use_floats, use_tabs, use_cscmd
         self.tabstr = ('\t' if self.use_tabs else '    ')
         self.cs_object = None
@@ -330,9 +279,6 @@ class CFileExport(CFileIO):
             if not o.name.startswith('Cutscene.'): continue
             self.cs_objects.append(o)
             
-    def GetFakeCutsceneLength(self, bones):
-        return max(2, sum(b['frames'] for b in bones))
-    
     def OnCutsceneStart(self, csname):
         self.wrote_cam_list = False
         for o in self.cs_objects:
@@ -372,7 +318,7 @@ class CFileExport(CFileIO):
             for l in cmdlists:
                 bones = GetCamBonesChecked(l)
                 self.outfile.write(self.CreateCamListCmd(l['start_frame'], 
-                    l['start_frame'] + self.GetFakeCutsceneLength(bones) + 1, at))
+                    l['start_frame'] + GetFakeCamCmdLength(l) + 1, at))
                 for i, b in enumerate(bones):
                     c_roll = b['camroll'] if at else 0
                     c_frames = b['frames'] if at else 0
@@ -403,18 +349,11 @@ class CFileExport(CFileIO):
                     self.TraverseInputFile(tmpfile)
                 for o in self.cs_objects:
                     print(o.name + ' not found in C file, appending to end. This may require manual editing afterwards.')
-                    cmdlists = GetCamCommands(self.context.scene, o)
-                    overall_start_frame = 1000000
-                    overall_end_frame = -1
-                    for c in cmdlists:
-                        overall_start_frame = min(overall_start_frame, c['start_frame'])
-                        bones = GetCamBonesChecked(c)
-                        end_frame = c['start_frame'] + self.GetFakeCutsceneLength(bones) + 1
-                        overall_end_frame = max(overall_end_frame, end_frame)
+                    cs_startf, cs_endf = GetCSStartFakeEnd(self.context, o)
                     self.outfile.write('\n// clang-format off\n')
                     self.outfile.write(self.CreateCutsceneStartCmd(o.name[9:]))
                     self.outfile.write(self.tabstr + 'CS_BEGIN_CUTSCENE(' 
-                        + str(overall_start_frame) + ', ' + str(overall_end_frame) + '),\n')
+                        + str(cs_startf) + ', ' + str(cs_endf) + '),\n')
                     self.WriteCutscene(o)
                     self.outfile.write(self.CreateCutsceneEndCmd())
                     self.outfile.write('};\n// clang-format on\n')
@@ -428,6 +367,6 @@ class CFileExport(CFileIO):
             os.remove(tmpfile)
         return ret
 
-def ExportCFile(context, filename, scale, use_floats, use_tabs, use_cscmd):
-    ex = CFileExport(context, scale, use_floats, use_tabs, use_cscmd)
+def ExportCFile(context, filename, use_floats, use_tabs, use_cscmd):
+    ex = CFileExport(context, use_floats, use_tabs, use_cscmd)
     return ex.ExportCFile(filename)
