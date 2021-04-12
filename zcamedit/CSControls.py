@@ -13,6 +13,23 @@ def CheckGetCSObj(op, context):
         if op: op.report({'WARNING'}, 'Cutscene empty object must be named "Cutscene.<YourCutsceneName>"')
         return None
     return cs_object
+    
+def CheckGetActionList(op, context):
+    '''Check if we are editing an action list or a action point.'''
+    al_object = context.view_layer.objects.active
+    if al_object is None or al_object.type != 'EMPTY':
+        if op: op.report({'WARNING'}, 'Must have an empty object active (selected)')
+        return None
+    if al_object.parent is not None and 'start_frame' in al_object and 'action_id' in al_object:
+        # We have one of the points selected, not the list
+        al_object = al_object.parent
+    if not any(al_object.name.startswith(s) for s in ['Path.', 'ActionList.']):
+        if op: op.report({'WARNING'}, 'Action list name must start with Path. or ActionList.')
+        return None
+    if al_object.parent is None or al_object.parent.type != 'EMPTY' or not al_object.parent.name.startswith('Cutscene.'):
+        if op: op.report({'WARNING'}, 'Action list must be child of cutscene')
+        return None
+    return al_object
 
 class ZCAMEDIT_OT_init_cs(bpy.types.Operator):
     '''Click here after adding an empty Cutscene.YourCutsceneName'''
@@ -61,6 +78,18 @@ class ZCAMEDIT_OT_create_actor_action(bpy.types.Operator):
             actor_preview.empty_display_size = MetersToBlend(context, 1.5)
         return {'FINISHED'}
 
+class ZCAMEDIT_OT_add_action_point(bpy.types.Operator):
+    '''Add a point to a Link or actor action list'''
+    bl_idname = 'zcamedit.add_action_point'
+    bl_label = 'Add point to current action'
+
+    def execute(self, context):
+        al_object = CheckGetActionList(self, context)
+        if al_object is None:
+            return {'CANCELLED'}
+        AddActionPoint(context, al_object)
+        return {'FINISHED'}
+
 class ZCAMEDIT_PT_cs_controls_panel(bpy.types.Panel):
     bl_label = 'zcamedit Cutscene Controls'
     bl_idname = 'ZCAMEDIT_PT_cs_controls_panel'
@@ -70,20 +99,23 @@ class ZCAMEDIT_PT_cs_controls_panel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        if not CheckGetCSObj(None, context):
-            layout.label(text='Make active (select) a cutscene object')
-            layout.label(text='(Empty object named "Cutscene.XXXXX")')
-        else:
+        if CheckGetCSObj(None, context):
             layout.prop(context.scene, 'ootBlenderScale')
             layout.prop(context.scene, 'zcamedit_previewlinkage')
             layout.operator('zcamedit.init_cs')
             layout.operator('zcamedit.create_link_action')
             layout.operator('zcamedit.create_actor_action')
+        elif CheckGetActionList(None, context):
+            layout.operator('zcamedit.add_action_point')
+        else:
+            layout.label(text='Make active (select) a cutscene object')
+            layout.label(text='(Empty object named "Cutscene.XXXXX")')
 
 def CSControls_register():
     bpy.utils.register_class(ZCAMEDIT_OT_init_cs)
     bpy.utils.register_class(ZCAMEDIT_OT_create_link_action)
     bpy.utils.register_class(ZCAMEDIT_OT_create_actor_action)
+    bpy.utils.register_class(ZCAMEDIT_OT_add_action_point)
     bpy.utils.register_class(ZCAMEDIT_PT_cs_controls_panel)
     if not hasattr(bpy.types.Scene, 'ootBlenderScale'):
         bpy.types.Scene.ootBlenderScale = FloatProperty(
@@ -106,6 +138,7 @@ def CSControls_register():
 def CSControls_unregister():
     del bpy.types.Scene.zcamedit_previewlinkage
     bpy.utils.unregister_class(ZCAMEDIT_PT_cs_controls_panel)
+    bpy.utils.unregister_class(ZCAMEDIT_OT_add_action_point)
     bpy.utils.unregister_class(ZCAMEDIT_OT_create_actor_action)
     bpy.utils.unregister_class(ZCAMEDIT_OT_create_link_action)
     bpy.utils.unregister_class(ZCAMEDIT_OT_init_cs)

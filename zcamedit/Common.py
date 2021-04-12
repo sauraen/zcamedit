@@ -1,4 +1,5 @@
 import struct
+import re
 import random
 
 import bpy, mathutils
@@ -14,6 +15,11 @@ def intBitsAsFloat(i):
 def floatBitsAsInt(f):
     s = struct.pack('>f', f)
     return struct.unpack('>l', s)[0]
+
+'''From https://stackoverflow.com/questions/7085512/check-what-number-a-string-ends-with-in-python/7085715'''
+def GetTrailingNumber(s):
+    m = re.search(r'\d+$', s)
+    return int(m.group()) if m else None
 
 def GetCamCommands(scene, cso):
     ret = []
@@ -82,7 +88,7 @@ def GetActionListPoints(scene, al_object):
     ret = []
     for o in scene.objects:
         if o.parent != al_object or o.type != 'EMPTY': continue
-        if 'start_frame' not in o: continue
+        if 'start_frame' not in o or 'action_id' not in o: continue
         ret.append(o)
     ret.sort(key=lambda o: o['start_frame'])
     return ret
@@ -168,17 +174,28 @@ def InitCS(context, cs_object):
     context.scene.render.resolution_x = 320
     context.scene.render.resolution_y = 240
 
+def AddActionPoint(context, al_object):
+    points = GetActionListPoints(context.scene, al_object)
+    if len(points) == 0:
+        num = '000'
+        pos = mathutils.Vector((random.random() * 40.0 - 20.0, -10.0, 0.0))
+        sf = 0
+        action_id = '0x0001'
+    else:
+        num = '{:03}'.format(GetTrailingNumber(points[-1].name) + 1)
+        pos = points[-1].location + mathutils.Vector((0.0, 10.0, 0.0))
+        sf = points[-1]['start_frame'] + 20
+        action_id = points[-1]['action_id']
+    point = CreateObject(context, al_object.name + '.Point.' + num, None, False)
+    point.parent = al_object
+    point.empty_display_type = 'ARROWS'
+    point.location = pos
+    point['start_frame'] = sf
+    point['action_id'] = action_id
+    return point
+
 def CreateActorAction(context, basename, cs_object):
     al_object = CreateObject(context, GetObjectUniqueName(context, basename), None, True)
     al_object.parent = cs_object
-    x = random.random() * 40.0 - 20.0
-    point1 = CreateObject(context, 'Point01', None, False)
-    point1.parent = al_object
-    point1.empty_display_type = 'ARROWS'
-    point1.location = mathutils.Vector((x, -10.0, 0.0))
-    point1['start_frame'] = 0
-    point2 = CreateObject(context, 'Point02', None, False)
-    point2.parent = al_object
-    point2.empty_display_type = 'ARROWS'
-    point2.location = mathutils.Vector((x, 10.0, 0.0))
-    point2['start_frame'] = 40
+    AddActionPoint(context, al_object)
+    AddActionPoint(context, al_object)
