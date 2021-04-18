@@ -58,15 +58,13 @@ def GetFakeCamCmdLength(armo):
     bones = GetCamBonesChecked(armo)
     return max(2, sum(b['frames'] for b in bones))
     
-def GetCSStartFakeEnd(context, cs_object):
+def GetCSFakeEnd(context, cs_object):
     cmdlists = GetCamCommands(context.scene, cs_object)
-    cs_startf = 1000000
     cs_endf = -1
     for c in cmdlists:
-        cs_startf = min(cs_startf, c['start_frame'])
         end_frame = c['start_frame'] + GetFakeCamCmdLength(c) + 1
         cs_endf = max(cs_endf, end_frame)
-    return cs_startf, cs_endf
+    return cs_endf
     
 def GetNameActorID(name):
     name = name.split('.')[0]
@@ -167,9 +165,8 @@ def InitCS(context, cs_object):
     link_preview.empty_display_type = 'SINGLE_ARROW'
     link_preview.empty_display_size = link_height
     # Other setup
-    cs_startf, cs_endf = GetCSStartFakeEnd(context, cs_object)
-    context.scene.frame_start = min(cs_startf, context.scene.frame_start)
-    context.scene.frame_end = max(cs_endf, context.scene.frame_end)
+    context.scene.frame_start = 0
+    context.scene.frame_end = max(GetCSFakeEnd(context, cs_object), context.scene.frame_end)
     context.scene.render.fps = 20
     context.scene.render.resolution_x = 320
     context.scene.render.resolution_y = 240

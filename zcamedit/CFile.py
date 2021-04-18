@@ -10,7 +10,7 @@ class CFileIO():
     # Default width is 16
     
     CAM_LIST_PARAMS = [
-        {'name', 'continueFlag', 'type': 'continueFlag'},
+        {'name': 'continueFlag', 'type': 'continueFlag'},
         {'name': 'roll', 'type': 'int', 'width': 8},
         {'name': 'frame', 'type': 'int'},
         {'name': 'viewAngle', 'type': 'int_or_float', 'min': 0.01, 'max': 179.99},
@@ -21,7 +21,7 @@ class CFileIO():
     ]
     
     ACTOR_ACTION_PARAMS = [
-        {'name': 'actorAction', 'type': 'hex'},
+        {'name': 'action', 'type': 'hex'},
         {'name': 'startFrame', 'type': 'int'},
         {'name': 'endFrame', 'type': 'int'},
         {'name': 'rotX', 'type': 'hex'},
@@ -70,7 +70,7 @@ class CFileIO():
             {'name': 'CS_CAM_FOCUS_POINT', 'params': CAM_LIST_PARAMS}
         ]},
         {'name': 'CS_MISC_LIST', 'params': [
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_MISC', 'params': [
                 {'name': 'unk', 'type': 'hex'},
@@ -90,7 +90,7 @@ class CFileIO():
             ]}
         ]},
         {'name': 'CS_LIGHTING_LIST', 'params': [
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_LIGHTING', 'params': [
                 {'name': 'setting', 'type': 'int'},
@@ -135,7 +135,7 @@ class CFileIO():
             {'name': 'CS_CMD_08', 'params': CAM_LIST_PARAMS}
         ]},
         {'name': 'CS_CMD_09_LIST', 'params': [
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_CMD_09', 'params': [
                 {'name': 'unk', 'type': 'int'},
@@ -150,7 +150,7 @@ class CFileIO():
         ]},
         {'name': 'CS_UNK_DATA_LIST', 'params': [
             {'name': 'cmdType', 'type': 'int'},
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_UNK_DATA', 'params': [
                 {'name': 'unk1', 'type': 'int', 'width': 32},
@@ -169,18 +169,17 @@ class CFileIO():
         ]},
         {'name': 'CS_NPC_ACTION_LIST', 'params': [
             {'name': 'cmdType', 'type': 'int'},
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_NPC_ACTION', 'params': ACTOR_ACTION_PARAMS}
         ]},
         {'name': 'CS_PLAYER_ACTION_LIST', 'params': [
-            {'name': 'cmdType', 'type': 'int'},
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_PLAYER_ACTION', 'params': ACTOR_ACTION_PARAMS}
         ]},
         {'name': 'CS_TEXT_LIST', 'params': [
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_TEXT_DISPLAY_TEXTBOX', 'params': [
                 {'name': 'messageId', 'type': 'int'},
@@ -202,22 +201,22 @@ class CFileIO():
             ]}
         ]},
         {'name': 'CS_PLAY_BGM_LIST', 'params': [
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_PLAY_BGM', 'params': BGM_PARAMS}
         ]},
         {'name': 'CS_STOP_BGM_LIST', 'params': [
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_STOP_BGM', 'params': BGM_PARAMS}
         ]},
         {'name': 'CS_FADE_BGM_LIST', 'params': [
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_FADE_BGM', 'params': BGM_PARAMS}
         ]},
         {'name': 'CS_TIME_LIST', 'params': [
-            {'name': 'entries', 'type': 'int'}
+            {'name': 'entries', 'type': 'int', 'min': 1}
         ], 'commands': [
             {'name': 'CS_TIME', 'params': [
                 {'name': 'unk', 'type': 'int'},
@@ -232,7 +231,7 @@ class CFileIO():
     
     NONLISTS_DEF = [
         {'name': 'CS_BEGIN_CUTSCENE', 'params': [
-            {'name': 'totalEntries', 'type': 'int', 'min': 1},
+            {'name': 'totalEntries', 'type': 'int', 'min': 0},
             {'name': 'endFrame', 'type': 'int', 'min': 1}
         ]},
         {'name': 'CS_SCENE_TRANS_FX', 'params': [
@@ -254,7 +253,7 @@ class CFileIO():
         toks = [t for t in l[len(cmddef['name'])+1:-2].split(', ') if t]
         if len(toks) != len(cmddef['params']):
             raise RuntimeError('Command ' + cmddef['name'] + ' requires ' 
-                + str(len(cmddef['params'])) + ' but only ' + str(len(toks))
+                + str(len(cmddef['params'])) + ' params but only ' + str(len(toks))
                 + ' found in file')
         ret = {'name': cmddef['name']}
         for t, p in zip(toks, cmddef['params']):
@@ -264,9 +263,11 @@ class CFileIO():
                 except ValueError:
                     raise RuntimeError('Invalid numeric value for ' + p['name'] + ' in ' + l)
                 width = p.get('width', 16)
-                if value >= (1 << width) or value < -(1 << (width - 1)):
+                if width == 16 and value >= 0xFFFF8000 and value <= 0xFFFFFFFF:
+                    value -= 0x100000000
+                elif value >= (1 << width) or value < -(1 << (width - 1)):
                     raise RuntimeError('Value out of range for ' + p['name'] + ' in ' + l)
-                if value >= (1 << (width - 1)):
+                elif value >= (1 << (width - 1)):
                     value -= 1 << width
             elif p['type'] == 'continueFlag':
                 if t in ['0', 'CS_CMD_CONTINUE']:
@@ -296,23 +297,23 @@ class CFileIO():
         if not sl.endswith('),'):
             raise RuntimeError('Syntax error: ' + sl)
         if curlist is not None:
-            ldef = next(c for c in LISTS_DEF if c['name'] == curlist, None)
+            ldef = next((c for c in self.LISTS_DEF if c['name'] == curlist), None)
             if ldef is None:
                 raise RuntimeError('Invalid current list: ' + curlist)
             for lcmd in ldef['commands']:
                 if sl.startswith(lcmd['name'] + '('):
                     if not l.startswith('\t\t') and not l.startswith('        '):
                         print('Warning, invalid indentation in ' + curlist + ': ' + sl)
-                    return self.ParseParams(lcmd, sl), curlist
-            # If not found, leave curlist
-        if not l.startswith('\t') and not l.startswith('    '):
+                    return self.ParseParams(lcmd, sl), 'same'
+        if not (l.startswith('\t') and len(l) > 1 and l[1] != '\t') and not \
+            (l.startswith('    ') and len(l) > 4 and l[4] != ' '):
             print('Warning, invalid indentation: ' + sl)
-        ldef = next(c for c in LISTS_DEF if sl.startswith(c['name'] + '('), None)
+        ldef = next((c for c in self.LISTS_DEF if sl.startswith(c['name'] + '(')), None)
         if ldef is not None:
-            return ParseParams(ldef, sl), ldef['name']
-        ldef = next(c for c in NONLISTS_DEF if sl.startswith(c['name'] + '('), None)
+            return self.ParseParams(ldef, sl), ldef['name']
+        ldef = next((c for c in self.NONLISTS_DEF if sl.startswith(c['name'] + '(')), None)
         if ldef is not None:
-            return ParseParams(ldef, sl), None
+            return self.ParseParams(ldef, sl), None
         raise RuntimeError('Invalid command: ' + l)
     
     def IsGetCutsceneStart(self, l):
@@ -333,29 +334,40 @@ class CFileIO():
         self.entrycount = 0
         
     def OnNonListCmd(self, l, cmd):
-        self.entrycount += 1
+        if cmd['name'] != 'CS_BEGIN_CUTSCENE':
+            self.entrycount += 1
     
     def OnListStart(self, l, cmd):
         self.entrycount += 1
-        if cmd['name'] in CAM_TYPE_LISTS:
+        if cmd['name'] in self.CAM_TYPE_LISTS:
             self.in_cam_list = True
             self.cam_list_last = False
+        if 'entries' in cmd:
+            self.list_nentries = cmd['entries']
+            self.list_entrycount = 0
+        else:
+            self.list_nentries = None
         
     def OnListCmd(self, l, cmd):
+        self.list_entrycount += 1
         if self.in_cam_list:
             if self.cam_list_last:
                 raise RuntimeError('More camera commands after last cmd! ' + l)
             self.cam_list_last = not cmd['continueFlag']
         
     def OnListEnd(self):
+        if self.list_nentries is not None and self.list_nentries != self.list_entrycount:
+            raise RuntimeError('List ' + self.curlist + ' was supposed to have '
+                + str(self.list_nentries) + ' entries but actually had '
+                + str(self.list_entrycount) + '!')
         if self.in_cam_list and not self.cam_list_last:
             raise RuntimeError('Camera list terminated without stop marker!')
         self.in_cam_list = False
         
     def OnCutsceneEnd(self):
         if self.nentries != self.entrycount:
-            raise RuntimeError('Cutscene header claimed ' + int(self.nentries)
-                + ' entries but only ' + int(self.entrycount) + ' found!')
+            raise RuntimeError('Cutscene header claimed ' + str(self.nentries)
+                + ' entries but only ' + str(self.entrycount) + ' found!')
     
     def TraverseInputFile(self, filename):
         state = 'OutsideCS'
@@ -371,27 +383,24 @@ class CFileIO():
                         self.OnLineOutsideCS(l)
                     continue
                 cmd, newlist = self.ParseCommand(l, self.curlist)
-                if cmd['name'] == 'CS_END':
-                    self.OnCutsceneEnd()
-                    state = 'OutsideCS'
-                    continue
-                if self.curlist is None and newlist is None:
-                    self.OnNonListCmd(l, cmd)
-                elif self.curlist is not None and newlist is None:
-                    self.OnListEnd()
-                    self.OnNonListCmd(l, cmd)
-                elif self.curlist is None and newlist is not None:
-                    self.OnListStart(l, cmd)
-                elif self.curlist == newlist:
-                    self.OnListCmd(l, cmd)
-                else:
-                    self.OnListEnd()
-                    self.OnListStart(l, cmd)
                 if self.first_cs_cmd or cmd['name'] == 'CS_BEGIN_CUTSCENE':
                     if not self.first_cs_cmd or not cmd['name'] == 'CS_BEGIN_CUTSCENE':
                         raise RuntimeError('First command in cutscene must be only CS_BEGIN_CUTSCENE! ' + l)
                     self.nentries = cmd['totalEntries']
                     self.first_cs_cmd = False
+                if newlist == 'same':
+                    self.OnListCmd(l, cmd)
+                else:
+                    if self.curlist is not None:
+                        self.OnListEnd()
+                    self.curlist = newlist
+                    if cmd['name'] == 'CS_END':
+                        self.OnCutsceneEnd()
+                        state = 'OutsideCS'
+                    elif newlist is None:
+                        self.OnNonListCmd(l, cmd)
+                    else:
+                        self.OnListStart(l, cmd)
         if state != 'OutsideCS':
             raise RuntimeError('Unexpected EOF!')
                 
@@ -414,8 +423,8 @@ class CFileImport(CFileIO):
             if al is None or len(pl['data']) != len(al['data']):
                 print('Internal error!')
                 return False
-            if pl['endFrame'] < pl['startFrame'] + 2 or al['endFrame'] < al['endFrame'] + 2:
-                printf('Cam cmd has nonstandard end frames!')
+            if pl['endFrame'] < pl['startFrame'] + 2 or al['endFrame'] < al['startFrame'] + 2:
+                print('Cam cmd has nonstandard end frames!')
             name = 'Shot{:02}'.format(shotnum+1)
             arm = self.context.blend_data.armatures.new(name)
             arm.display_type = 'STICK'
@@ -509,6 +518,7 @@ class CFileImport(CFileIO):
         try:
             self.TraverseInputFile(filename)
         except Exception as e:
+            print(str(e))
             return str(e)
         self.context.scene.frame_set(self.context.scene.frame_start)
         return None
@@ -528,6 +538,14 @@ class CFileExport(CFileIO):
     
     def CreateCutsceneStartCmd(self, csname):
         return ('CutsceneData ' if self.use_cscmd else 's32 ') + csname + '[] = {\n'
+    
+    def CreateCutsceneBeginCmdRaw(self, nentries, end_frame):
+        return self.tabstr + 'CS_BEGIN_CUTSCENE(' + str(nentries) + ', ' + str(end_frame) + '),\n'
+    
+    def CreateCutsceneBeginCmd(self, cs_object):
+        return CreateCutsceneBeginCmdRaw(
+            len(GetCamCommands(self.context.scene, cs_object)) * 2,
+            GetCSFakeEnd(self.context, cs_object))
     
     def CreateCutsceneEndCmd(self):
         return self.tabstr + 'CS_END(),\n'
@@ -575,56 +593,66 @@ class CFileExport(CFileIO):
             self.cs_object = None
             print('Scene does not contain cutscene ' + csname + ' in file, skipping')
         self.outfile.write(self.CreateCutsceneStartCmd(csname))
+        self.cs_text = ''
         
     def OnCutsceneEnd(self):
         super().OnCutsceneEnd()
         if self.cs_object is not None and not self.wrote_cam_list:
-            print('Warning, cutscene did not contain any camera commands, adding at end')
-            self.WriteCutscene(self.cs_object)
+            print('Cutscene did not contain any existing camera commands, adding at end')
+            self.WriteCamMotion(self.cs_object)
         self.cs_object = None
-        self.outfile.write(self.CreateCutsceneEndCmd())
+        self.cs_text += self.CreateCutsceneEndCmd()
+        self.outfile.write(self.CreateCutsceneBeginCmdRaw(self.entrycount_write, self.cs_end_frame))
+        self.outfile.write(self.cs_text)
     
     def OnLineOutsideCS(self, l):
-        super().OnLineOutsideCS()
+        super().OnLineOutsideCS(l)
         self.outfile.write(l)
     
     def OnNonListCmd(self, l, cmd):
-        super().OnNonListCmd()
-        self.outfile.write(l)
+        super().OnNonListCmd(l, cmd)
+        if cmd['name'] == 'CS_BEGIN_CUTSCENE':
+            self.cs_end_frame = cmd['endFrame']
+            self.entrycount_write = 0
+        else:
+            self.cs_text += l
+            self.entrycount_write += 1
     
     def OnListCmd(self, l, cmd):
-        super().OnListCmd()
+        super().OnListCmd(l, cmd)
         if not self.in_cam_list:
-            self.outfile.write(l)
+            self.cs_text += l
     
     def OnListStart(self, l, cmd):
-        super().OnListStart()
-        if cmd['name'] in CAM_TYPE_LISTS:
+        super().OnListStart(l, cmd)
+        if cmd['name'] in self.CAM_TYPE_LISTS:
             if self.cs_object is not None and not self.wrote_cam_list:
-                self.WriteCutscene(self.cs_object)
+                self.WriteCamMotion(self.cs_object)
                 self.wrote_cam_list = True
         else:
-            self.outfile.write(l)
+            self.cs_text += l
+            self.entrycount_write += 1
     
-    def WriteCutscene(self, cs_object):
+    def WriteCamMotion(self, cs_object):
         cmdlists = GetCamCommands(self.context.scene, cs_object)
         if len(cmdlists) == 0:
             raise RuntimeError('No camera command lists in cutscene ' + cs_object.name)
         def WriteLists(at):
             for l in cmdlists:
                 bones = GetCamBonesChecked(l)
-                self.outfile.write(self.CreateCamListCmd(l['start_frame'], 
-                    l['start_frame'] + GetFakeCamCmdLength(l) + 1, at))
+                self.cs_text += self.CreateCamListCmd(l['start_frame'], 
+                    l['start_frame'] + GetFakeCamCmdLength(l) + 1, at)
+                self.entrycount_write += 1
                 for i, b in enumerate(bones):
                     c_roll = b['camroll'] if at else 0
                     c_frames = b['frames'] if at else 0
                     c_fov = b['fov']
                     c_pos = b.tail if at else b.head
                     c_x, c_y, c_z = c_pos.x, c_pos.y, c_pos.z
-                    self.outfile.write(self.CreateCamCmd(
-                        True, c_roll, c_frames, c_fov, c_x, c_y, c_z, at))
+                    self.cs_text += self.CreateCamCmd(
+                        True, c_roll, c_frames, c_fov, c_x, c_y, c_z, at)
                 # Extra dummy point
-                self.outfile.write(self.CreateCamCmd(False, 0, 0, 0.0, 0.0, 0.0, 0.0, at))
+                self.cs_text += self.CreateCamCmd(False, 0, 0, 0.0, 0.0, 0.0, 0.0, at)
         WriteLists(False)
         WriteLists(True)
         
@@ -645,12 +673,10 @@ class CFileExport(CFileIO):
                     self.TraverseInputFile(tmpfile)
                 for o in self.cs_objects:
                     print(o.name + ' not found in C file, appending to end. This may require manual editing afterwards.')
-                    cs_startf, cs_endf = GetCSStartFakeEnd(self.context, o)
                     self.outfile.write('\n// clang-format off\n')
                     self.outfile.write(self.CreateCutsceneStartCmd(o.name[9:]))
-                    self.outfile.write(self.tabstr + 'CS_BEGIN_CUTSCENE(' 
-                        + str(cs_startf) + ', ' + str(cs_endf) + '),\n')
-                    self.WriteCutscene(o)
+                    self.outfile.write(self.CreateCutsceneBeginCmd(o))
+                    self.WriteCamMotion(o)
                     self.outfile.write(self.CreateCutsceneEndCmd())
                     self.outfile.write('};\n// clang-format on\n')
         except Exception as e:
