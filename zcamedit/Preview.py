@@ -32,9 +32,9 @@ def Z64SplineInterpolate(bones, frame):
         if p + 2 >= len(bones) - 1:
             # Camera position is uninitialized
             return UndefinedCamPosAt()
-        framesPoint1 = bones[p+1]['frames']
+        framesPoint1 = bones[p+1].frames
         denomPoint1 = 1.0 / framesPoint1 if framesPoint1 != 0 else 0.0
-        framesPoint2 = bones[p+2]['frames']
+        framesPoint2 = bones[p+2].frames
         denomPoint2 = 1.0 / framesPoint2 if framesPoint2 != 0 else 0.0
         dt = max(t * (denomPoint2 - denomPoint1) + denomPoint1, 0.0)
         # Different from in game; we remove the extra dummy point at import
@@ -53,8 +53,8 @@ def Z64SplineInterpolate(bones, frame):
     s1, s2, s3, s4 = GetSplineCoeffs(t)
     eye = s1 * bones[p].head + s2 * bones[p+1].head + s3 * bones[p+2].head + s4 * bones[p+3].head
     at  = s1 * bones[p].tail + s2 * bones[p+1].tail + s3 * bones[p+2].tail + s4 * bones[p+3].tail
-    roll = s1 * bones[p]['camroll'] + s2 * bones[p+1]['camroll'] + s3 * bones[p+2]['camroll'] + s4 * bones[p+3]['camroll']
-    fov = s1 * bones[p]['fov'] + s2 * bones[p+1]['fov'] + s3 * bones[p+2]['fov'] + s4 * bones[p+3]['fov']
+    roll = s1 * bones[p].camroll + s2 * bones[p+1].camroll + s3 * bones[p+2].camroll + s4 * bones[p+3].camroll
+    fov = s1 * bones[p].fov + s2 * bones[p+1].fov + s3 * bones[p+2].fov + s4 * bones[p+3].fov
     return (eye, at, roll, fov)
 
 def DummyLinearInterpolate(bones, frame):
@@ -66,7 +66,7 @@ def DummyLinearInterpolate(bones, frame):
     for b in bones[1:]:
         last_bone = next_bone
         next_bone = b
-        frames = last_bone['frames']
+        frames = last_bone.frames
         if frame >= f and frame < f + frames:
             fade = float(frame - f) / frames
             break
@@ -79,8 +79,8 @@ def DummyLinearInterpolate(bones, frame):
         return UndefinedCamPosAt()
     last_eye, next_eye = last_bone.head, next_bone.head
     last_at, next_at = last_bone.tail, next_bone.tail #"At" == "look at"
-    last_roll, next_roll = last_bone['camroll'], next_bone['camroll']
-    last_fov, next_fov = last_bone['fov'], next_bone['fov']
+    last_roll, next_roll = last_bone.camroll, next_bone.camroll
+    last_fov, next_fov = last_bone.fov, next_bone.fov
     eye = last_eye * (1.0 - fade) + next_eye * fade
     at = last_at * (1.0 - fade) + next_at * fade
     roll = last_roll * (1.0 - fade) + next_roll * fade
@@ -96,6 +96,7 @@ def GetCmdCamState(cmd, frame):
     if bones is None:
         return UndefinedCamPos()
     eye, at, roll, fov = Z64SplineInterpolate(bones, frame)
+    # TODO handle cam_mode (relativeToLink)
     lookvec = at - eye
     if lookvec.length < 1e-6:
         return UndefinedCamPos()

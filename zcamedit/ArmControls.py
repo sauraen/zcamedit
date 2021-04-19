@@ -1,64 +1,55 @@
 import bpy
-
-def CheckGetArmO(op, context):
-    '''Check if we are editing an armature in the appropriate hierarchy.'''
-    armo = context.view_layer.objects.active
-    if armo is None or armo.type != 'ARMATURE' or armo.mode != 'EDIT':
-        if op: op.report({'WARNING'}, 'Must be in Edit Mode for an armature')
-        return None
-    if armo.parent is None or armo.parent.type != 'EMPTY':
-        if op: op.report({'WARNING'}, 'Armature must be child of empty object (Cutscene)')
-        return None
-    if not armo.parent.name.startswith('Cutscene.'):
-        if op: op.report({'WARNING'}, 'Empty parent must be named "Cutscene.<YourCutsceneName>"')
-        return None
-    arm = armo.data
-    if len(arm.edit_bones) == 0:
-        if op: op.report({'WARNING'}, 'Armature must contain some bones')
-        return None
-    return armo
-
-class ZCAMEDIT_OT_init_arm_props(bpy.types.Operator):
-    '''Click here after any time you add bones.'''
-    bl_idname = 'zcamedit.init_arm_props'
-    bl_label = 'Init Armature & Bone Props'
-        
-    def execute(self, context):
-        armo = CheckGetArmO(self, context)
-        if armo is None:
-            return {'CANCELLED'}
-        arm_props = {'start_frame': 10, 'rel_link': False}
-        bone_props = {'frames': 20, 'fov': 60.0, 'camroll': 0}
-        for p in arm_props:
-            if p not in armo:
-                armo[p] = arm_props[p]
-        for eb in armo.data.edit_bones:
-            for p in bone_props:
-                if p not in eb:
-                    eb[p] = bone_props[p]
-        return {'FINISHED'}
-
+from bpy.props import FloatProperty, IntProperty, EnumProperty
 
 class ZCAMEDIT_PT_arm_panel(bpy.types.Panel):
-    bl_label = 'zcamedit Armature Controls'
+    bl_label = 'zcamedit Cutscene Camera Controls'
     bl_idname = 'ZCAMEDIT_PT_arm_panel'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = 'data'
+    bl_context = 'object'
+    bl_options = {'HIDE_HEADER'}
     
     def draw(self, context):
-        layout = self.layout
-        if not CheckGetArmO(None, context):
-            layout.label(text='Go into Edit Mode for an armature')
-            layout.label(text='Must be parented to cutscene object')
-        else:
-            layout.operator('zcamedit.init_arm_props')
+        obj = context.view_layer.objects.active
+        if obj is None or obj.type != 'ARMATURE': return
+        box = self.layout.box()
+        box.label(text = 'zcamedit Cutscene Camera Controls')
+        box.prop(obj, 'start_frame')
+        box.prop(obj, 'cam_mode', expand = True)
+        abone = obj.data.bones.active
+        if abone is not None and obj.mode == 'EDIT':
+            box.label(text = 'Bone / Key point:')
+            r = box.row()
+            r.prop(abone, 'frames')
+            r.prop(abone, 'fov')
+            r.prop(abone, 'camroll')
 
 def ArmControls_register():
-    bpy.utils.register_class(ZCAMEDIT_OT_init_arm_props)
     bpy.utils.register_class(ZCAMEDIT_PT_arm_panel)
+    bpy.types.Bone.frames = bpy.props.IntProperty(
+        name='Frames', description='Key point frames value',
+        default=20, min=0)
+    bpy.types.Bone.fov = bpy.props.FloatProperty(
+        name='FoV', description='Field of view (degrees)',
+        default=60.0, min=0.01, max=179.99)
+    bpy.types.Bone.camroll = bpy.props.IntProperty(
+        name='Roll', description='Camera roll (degrees), positive turns image clockwise',
+        default=0, min=-0x80, max=0x7F)
+    bpy.types.Armature.start_frame = bpy.props.IntProperty(
+        name='Start Frame', description='Shot start frame',
+        default=0, min=0)
+    bpy.types.Armature.cam_mode = bpy.props.EnumProperty(items = [
+        ('normal', 'Normal', 'Normal (0x1 / 0x2)'),
+        ('rel_link', 'Rel. Link', 'Relative to Link (0x5 / 0x6)'),
+        ('0708', '0x7/0x8', 'Not Yet Understood Mode (0x7 / 0x8)')],
+        name='Mode', description='Camera command mode', default='normal')
+    
     
 def ArmControls_unregister():
+    del bpy.types.Armature.cam_mode
+    del bpy.types.Armature.start_frame
+    del bpy.types.Bone.camroll
+    del bpy.types.Bone.fov
+    del bpy.types.Bone.frames
     bpy.utils.unregister_class(ZCAMEDIT_PT_arm_panel)
-    bpy.utils.unregister_class(ZCAMEDIT_OT_init_arm_props)
     

@@ -55,6 +55,34 @@ class CFileIO():
     CAM_TYPE_LISTS = ['CS_CAM_POS_LIST', 'CS_CAM_FOCUS_POINT_LIST', 
         'CS_CAM_POS_PLAYER_LIST', 'CS_CAM_FOCUS_POINT_PLAYER_LIST',
         'CS_CMD_07_LIST', 'CS_CMD_08_LIST']
+        
+    CAM_TYPE_TO_TYPE = {
+        'CS_CAM_POS_LIST': 'pos',
+        'CS_CAM_FOCUS_POINT_LIST': 'at',
+        'CS_CAM_POS_PLAYER_LIST': 'pos',
+        'CS_CAM_FOCUS_POINT_PLAYER_LIST': 'at',
+        'CS_CMD_07_LIST': 'pos',
+        'CS_CMD_08_LIST': 'at'}
+    
+    CAM_TYPE_TO_MODE = {
+        'CS_CAM_POS_LIST': 'normal',
+        'CS_CAM_FOCUS_POINT_LIST': 'normal',
+        'CS_CAM_POS_PLAYER_LIST': 'rel_link',
+        'CS_CAM_FOCUS_POINT_PLAYER_LIST': 'rel_link',
+        'CS_CMD_07_LIST': '0708',
+        'CS_CMD_08_LIST': '0708'}
+        
+    ATMODE_TO_CMD = {
+        'pos': {
+            'normal': 'CS_CAM_POS',
+            'rel_link': 'CS_CAM_POS_PLAYER',
+            '0708': 'CS_CMD_07'
+        }, 'at': {
+            'normal': 'CS_CAM_FOCUS_POINT',
+            'rel_link': 'CS_CAM_FOCUS_POINT_PLAYER',
+            '0708': 'CS_CMD_08'
+        }
+    }
     
     LISTS_DEF = [
         {'name': 'CS_CAM_POS_LIST', 'params': [
@@ -420,7 +448,7 @@ class CFileImport(CFileIO):
                 if a['startFrame'] == pl['startFrame']:
                     al = a
                     break
-            if al is None or len(pl['data']) != len(al['data']):
+            if al is None or len(pl['data']) != len(al['data']) or pl['mode'] != al['mode']:
                 print('Internal error!')
                 return False
             if pl['endFrame'] < pl['startFrame'] + 2 or al['endFrame'] < al['startFrame'] + 2:
@@ -429,10 +457,10 @@ class CFileImport(CFileIO):
             arm = self.context.blend_data.armatures.new(name)
             arm.display_type = 'STICK'
             arm.show_names = True
+            arm.start_frame = pl['startFrame']
+            arm.cam_mode = pl['mode']
             armo = CreateObject(self.context, name, arm, True)
             armo.parent = cs_object
-            armo['start_frame'] = pl['startFrame']
-            armo['rel_link'] = False #TODO
             bpy.ops.object.mode_set(mode='EDIT')
             for i in range(len(pl['data'])):
                 pos = pl['data'][i]
@@ -446,9 +474,9 @@ class CFileImport(CFileIO):
                 bone.tail = [scl(at['xPos']), -scl(at['zPos']), scl(at['yPos'])]
                 if pos['frame'] != 0:
                     print('Frames must be 0 in cam pos command!')
-                bone['frames'] = at['frame']
-                bone['fov'] = at['viewAngle']
-                bone['camroll'] = at['roll']
+                bone.frames = at['frame']
+                bone.fov = at['viewAngle']
+                bone.camroll = at['roll']
             bpy.ops.object.mode_set(mode='OBJECT')
         # Init at end to get timing info
         InitCS(self.context, cs_object)
@@ -470,13 +498,9 @@ class CFileImport(CFileIO):
         
     def OnListStart(self, l, cmd):
         super().OnListStart(l, cmd)
-        if cmd['name'] == 'CS_CAM_POS_LIST':
-            self.listtype = 'pos'
-        elif cmd['name'] == 'CS_CAM_FOCUS_POINT_LIST':
-            self.listtype = 'at'
-        else:
-            self.listtype = None
-            return
+        self.listtype = self.CAM_TYPE_TO_TYPE.get(cmd['name'], None)
+        if self.listtype is None: return
+        self.listmode = self.CAM_TYPE_TO_MODE[cmd['name']]
         self.list_startFrame = cmd['startFrame']
         self.list_endFrame = cmd['endFrame']
         self.listdata = []
@@ -484,6 +508,11 @@ class CFileImport(CFileIO):
             # Make sure there's already a cam pos list with this start frame
             for ls in self.poslists:
                 if ls['startFrame'] == self.list_startFrame:
+                    if ls['mode'] != self.listmode:
+                        raise RuntimeError('Got pos list mode ' + ls['mode']
+                            + ' starting at ' + ls['startFrame'] 
+                            + ', but at list starting at the same frame with mode '
+                            + self.listmode + '!')
                     self.corresponding_poslist = ls['data']
                     break
             else:
@@ -504,8 +533,8 @@ class CFileImport(CFileIO):
                 + ' commands, but corresponding pos list contains ' 
                 + str(len(self.corresponding_poslist)) + ' commands!')
         (self.poslists if self.listtype == 'pos' else self.atlists).append(
-            {'startFrame': self.list_startFrame, 
-            'endFrame': self.list_endFrame, 'data': self.listdata})
+            {'startFrame': self.list_startFrame, 'endFrame': self.list_endFrame, 
+            'mode': self.listmode, 'data': self.listdata})
     
     def OnListCmd(self, l, cmd):
         super().OnListCmd(l, cmd)
@@ -550,17 +579,16 @@ class CFileExport(CFileIO):
     def CreateCutsceneEndCmd(self):
         return self.tabstr + 'CS_END(),\n'
     
-    def CreateCamListCmd(self, start, end, at=False):
-        cmd = 'CS_CAM_FOCUS_POINT_LIST(' if at else 'CS_CAM_POS_LIST('
-        return self.tabstr + cmd + str(start) + ', ' + str(end) + '),\n'
+    def CreateCamListCmd(self, start, end, at, mode):
+        return self.tabstr + self.ATMODE_TO_CMD[at][mode] + '_LIST(' \
+            + str(start) + ', ' + str(end) + '),\n'
 
-    def CreateCamCmd(self, c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, at=False):
-        cmd = 'CS_CAM_FOCUS_POINT(' if at else 'CS_CAM_POS('
+    def CreateCamCmd(self, c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, at, mode):
         if self.use_cscmd:
             c_continue = 'CS_CMD_CONTINUE' if c_continue else 'CS_CMD_STOP'
         else:
             c_continue = '0' if c_continue else '-1'
-        cmd = self.tabstr * 2 + cmd + c_continue + ', '
+        cmd = self.tabstr * 2 + self.ATMODE_TO_CMD[at][mode] + '(' + c_continue + ', '
         cmd += str(c_roll) + ', '
         cmd += str(c_frames) + ', '
         cmd += (str(c_fov) + 'f' if self.use_floats else hex(floatBitsAsInt(c_fov))) + ', '
@@ -640,19 +668,20 @@ class CFileExport(CFileIO):
         def WriteLists(at):
             for l in cmdlists:
                 bones = GetCamBonesChecked(l)
-                self.cs_text += self.CreateCamListCmd(l['start_frame'], 
-                    l['start_frame'] + GetFakeCamCmdLength(l) + 1, at)
+                sf = l.data.start_frame
+                mode = l.data.cam_mode
+                self.cs_text += self.CreateCamListCmd(sf, sf + GetFakeCamCmdLength(l) + 1, at, mode)
                 self.entrycount_write += 1
                 for i, b in enumerate(bones):
-                    c_roll = b['camroll'] if at else 0
-                    c_frames = b['frames'] if at else 0
-                    c_fov = b['fov']
+                    c_roll = b.camroll if at else 0
+                    c_frames = b.frames if at else 0
+                    c_fov = b.fov
                     c_pos = b.tail if at else b.head
                     c_x, c_y, c_z = c_pos.x, c_pos.y, c_pos.z
                     self.cs_text += self.CreateCamCmd(
-                        True, c_roll, c_frames, c_fov, c_x, c_y, c_z, at)
+                        True, c_roll, c_frames, c_fov, c_x, c_y, c_z, at, mode)
                 # Extra dummy point
-                self.cs_text += self.CreateCamCmd(False, 0, 0, 0.0, 0.0, 0.0, 0.0, at)
+                self.cs_text += self.CreateCamCmd(False, 0, 0, 0.0, 0.0, 0.0, 0.0, at, mode)
         WriteLists(False)
         WriteLists(True)
         

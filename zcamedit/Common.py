@@ -56,7 +56,7 @@ def GetCamBonesChecked(cmd):
     
 def GetFakeCamCmdLength(armo):
     bones = GetCamBonesChecked(armo)
-    return max(2, sum(b['frames'] for b in bones))
+    return max(2, sum(b.frames for b in bones))
     
 def GetCSFakeEnd(context, cs_object):
     cmdlists = GetCamCommands(context.scene, cs_object)
