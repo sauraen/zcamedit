@@ -3,6 +3,8 @@ import math, mathutils
 from bpy.app.handlers import persistent
 
 from .Common import *
+from .CamData import *
+from .ActionData import *
 
 def UndefinedCamPos():
     return (mathutils.Vector((0.0, 0.0, 0.0)), mathutils.Quaternion(), 45.0)
@@ -88,7 +90,7 @@ def DummyLinearInterpolate(bones, frame):
     return (eye, at, roll, fov)
 
 def GetCmdCamState(cmd, frame):
-    frame -= cmd['start_frame'] + 1
+    frame -= cmd.data.start_frame + 1
     if frame < 0:
         print('Warning, camera command evaluated for frame ' + str(frame))
         return UndefinedCamPos()
@@ -117,36 +119,13 @@ def GetCutsceneCamState(scene, cso, frame):
     cur_cmd = None
     cur_cmd_start_frame = -1
     for c in cmds:
-        if c['start_frame'] >= frame: continue
-        if c['start_frame'] > cur_cmd_start_frame:
+        if c.data.start_frame >= frame: continue
+        if c.data.start_frame > cur_cmd_start_frame:
             cur_cmd = c
-            cur_cmd_start_frame = c['start_frame']
+            cur_cmd_start_frame = c.data.start_frame
     if cur_cmd is None:
         return UndefinedCamPos()
     return GetCmdCamState(cur_cmd, frame)
-    
-def GetActorState(scene, cs_object, actorid, frame):
-    actionlists = GetActionListsForID(scene, cs_object, actorid)
-    pos = mathutils.Vector((0.0, 0.0, 0.0))
-    rot = mathutils.Vector((0.0, 0.0, 0.0))
-    for al in actionlists:
-        points = GetActionListPoints(scene, al)
-        if len(points) < 2: continue
-        for i in range(len(points)-1):
-            s = points[i]['start_frame']
-            e = points[i+1]['start_frame']
-            if e <= s: continue
-            if frame <= s: continue
-            if frame <= e:
-                pos = points[i].location * (e - frame) + points[i+1].location * (frame - s)
-                pos /= e - s
-                rot = points[i].rotation_euler
-                return pos, rot
-            elif i == len(points)-2:
-                # If went off the end, use last position
-                pos = points[i+1].location
-                rot = points[i].rotation_euler
-    return pos, rot
     
 @persistent
 def PreviewFrameHandler(scene):
@@ -161,10 +140,8 @@ def PreviewFrameHandler(scene):
             o.rotation_mode = 'QUATERNION'
             o.rotation_quaternion = rot_quat
             o.data.angle = math.pi * fov / 180.0
-        if o.type == 'EMPTY' and o.name.startswith('Preview.'):
-            actorid = GetNameActorID(o.name[8:])
-            if actorid is None: continue
-            pos, rot = GetActorState(scene, o.parent, actorid, scene.frame_current)
+        elif IsPreview(o):
+            pos, rot = GetActorState(scene, o.parent, o.zc_alist.actor_id, scene.frame_current)
             if pos is None: continue
             o.location = pos
             o.rotation_mode = 'XYZ'

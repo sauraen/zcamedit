@@ -2,6 +2,9 @@ import bpy
 import os, shutil, copy, math
 
 from .Common import *
+from .CamData import *
+from .ActionData import *
+from .InitCS import InitCS
 
 class CFileIO():
     def __init__(self, context):

@@ -10,22 +10,25 @@ bl_info = {
 }
 
 import bpy
-from .ArmControls import ArmControls_register, ArmControls_unregister
+from .CSControls import CSControls_register, CSControls_unregister
+from .CamControls import CamControls_register, CamControls_unregister
+from .ActionControls import ActionControls_register, ActionControls_unregister
 from .Preview import Preview_register, Preview_unregister
 from .ImportExportControls import ImportExportControls_register, ImportExportControls_unregister
-from .CSControls import CSControls_register, CSControls_unregister
 
 def register():
-    ArmControls_register()
-    Preview_register()
-    ImportExportControls_register()
     CSControls_register()
+    CamControls_register()
+    ActionControls_register()
+    ImportExportControls_register()
+    Preview_register()
 
 def unregister():
-    CSControls_unregister()
-    ImportExportControls_unregister()
     Preview_unregister()
-    ArmControls_unregister()
+    ImportExportControls_unregister()
+    ActionControls_unregister()
+    CamControls_unregister()
+    CSControls_unregister()
 
 if __name__ == '__main__':
     register()
