@@ -33,7 +33,7 @@ class ZCAMEDIT_OT_add_action_point(bpy.types.Operator):
         al_object = CheckGetActionList(self, context)
         if not al_object:
             return {'CANCELLED'}
-        AddActionPoint(context, al_object, True)
+        CreateDefaultActionPoint(context, al_object, True)
         return {'FINISHED'}
 
 class ZCAMEDIT_OT_create_action_preview(bpy.types.Operator):
@@ -45,7 +45,7 @@ class ZCAMEDIT_OT_create_action_preview(bpy.types.Operator):
         al_object = CheckGetActionList(self, context)
         if not al_object:
             return {'CANCELLED'}
-        CreatePreview(context, al_object.parent, al_object.zc_alist.actor_id, True)
+        CreateOrInitPreview(context, al_object.parent, al_object.zc_alist.actor_id, True)
         return {'FINISHED'}
 
 class ZCAMEDIT_PT_action_controls_panel(bpy.types.Panel):

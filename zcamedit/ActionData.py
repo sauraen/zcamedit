@@ -72,40 +72,49 @@ def GetActorState(scene, cs_object, actorid, frame):
                 rot = points[i].rotation_euler
     return pos, rot
 
-def AddActionPoint(context, al_object, select):
-    points = GetActionListPoints(context.scene, al_object)
-    if len(points) == 0:
-        num = '000'
-        pos = mathutils.Vector((random.random() * 40.0 - 20.0, -10.0, 0.0))
-        sf = 0
-        action_id = '0x0001'
-    else:
-        num = '{:03}'.format(GetTrailingNumber(points[-1].name) + 1)
-        pos = points[-1].location + mathutils.Vector((0.0, 10.0, 0.0))
-        sf = points[-1].zc_apoint.start_frame + 20
-        action_id = points[-1].zc_apoint.action_id
-    point = CreateObject(context, 'Point.' + num, None, select)
+def CreateActionPoint(context, al_object, select, pos, start_frame, action_id):
+    point = CreateObject(context, 'Point.001', None, select)
     point.parent = al_object
     point.empty_display_type = 'ARROWS'
     point.location = pos
-    point.zc_apoint.start_frame = sf
+    point.rotation_mode = 'XYZ'
+    point.zc_apoint.start_frame = start_frame
     point.zc_apoint.action_id = action_id
     return point
+    
+def CreateDefaultActionPoint(context, al_object, select):
+    points = GetActionListPoints(context.scene, al_object)
+    if len(points) == 0:
+        pos = mathutils.Vector((random.random() * 40.0 - 20.0, -10.0, 0.0))
+        start_frame = 0
+        action_id = '0x0001'
+    else:
+        pos = points[-1].location + mathutils.Vector((0.0, 10.0, 0.0))
+        start_frame = points[-1].zc_apoint.start_frame + 20
+        action_id = points[-1].zc_apoint.action_id
+    CreateActionPoint(context, al_object, select, pos, start_frame, action_id)
 
-def CreateActorAction(context, actorid, cs_object):
-    al_object = CreateObject(context, 'ActionList.001', None, True)
+def GetActorName(actor_id):
+    return 'Link' if actor_id < 0 else 'Actor' + str(actor_id)
+
+def CreateActorAction(context, actor_id, cs_object):
+    al_object = CreateObject(context, 'ActionList.' + GetActorName(actor_id) + '.001', None, True)
     al_object.parent = cs_object
+    al_object.zc_alist.actor_id = actor_id
+    return al_object
+    
+def CreateDefaultActorAction(context, actor_id, cs_object):
+    al_object = CreateActorAction(context, actor_id, cs_object)
     AddActionPoint(context, al_object, False)
     AddActionPoint(context, al_object, False)
 
-def CreatePreview(context, cs_object, actor_id, select=False):
+def CreateOrInitPreview(context, cs_object, actor_id, select=False):
     for o in context.blend_data.objects:
         if IsPreview(o) and o.parent == cs_object and o.zc_alist.actor_id == actor_id:
             preview = o
             break
     else:
-        pname = 'Link' if actor_id < 0 else 'Actor' + str(actor_id)
-        preview = CreateObject(context, 'Preview.' + pname + '.001', None, select)
+        preview = CreateObject(context, 'Preview.' + GetActorName(actor_id) + '.001', None, select)
         preview.parent = cs_object
     preview.empty_display_type = 'SINGLE_ARROW'
     preview.empty_display_size = MetersToBlend(context, ActorHeightMeters(context, actor_id))

@@ -52,7 +52,7 @@ class ZCAMEDIT_OT_create_link_action(bpy.types.Operator):
         cs_object = CheckGetCSObj(self, context)
         if cs_object is None:
             return {'CANCELLED'}
-        CreateActorAction(context, -1, cs_object)
+        CreateDefaultActorAction(context, -1, cs_object)
         return {'FINISHED'}
         
 class ZCAMEDIT_OT_create_actor_action(bpy.types.Operator):
@@ -64,7 +64,7 @@ class ZCAMEDIT_OT_create_actor_action(bpy.types.Operator):
         cs_object = CheckGetCSObj(self, context)
         if cs_object is None:
             return {'CANCELLED'}
-        CreateActorAction(context, random.randint(1, 100), cs_object)
+        CreateDefaultActorAction(context, random.randint(1, 100), cs_object)
         return {'FINISHED'}
 
 class ZCAMEDIT_PT_cs_controls_panel(bpy.types.Panel):

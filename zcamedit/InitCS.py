@@ -24,8 +24,10 @@ def InitCS(context, cs_object):
         camo.data.passepartout_alpha = 0.95
         camo.data.clip_start = 1e-3
         camo.data.clip_end = 200.0
-    # Link preview--TODO based on actions which exist
-    CreatePreview(context, cs_object, -1)
+    # Preview actions
+    for o in context.blend_data.objects:
+        if IsActionList(o):
+            CreateOrInitPreview(context, o.parent, o.zc_alist.actor_id, False)
     # Other setup
     context.scene.frame_start = 0
     context.scene.frame_end = max(GetCSFakeEnd(context, cs_object), context.scene.frame_end)

@@ -64,7 +64,7 @@ def GetCSFakeEnd(context, cs_object):
     cmdlists = GetCamCommands(context.scene, cs_object)
     cs_endf = -1
     for c in cmdlists:
-        end_frame = c['start_frame'] + GetFakeCamCmdLength(c) + 1
+        end_frame = c.data.start_frame + GetFakeCamCmdLength(c) + 1
         cs_endf = max(cs_endf, end_frame)
     return cs_endf
     
@@ -74,12 +74,14 @@ def CreateShot(context, cs_object):
     arm.show_names = True
     armo = CreateObject(context, arm.name, arm, True)
     armo.parent = cs_object
-    bpy.ops.object.mode_set(mode='EDIT')
     for i in range(4):
+        bpy.ops.object.mode_set(mode='EDIT')
         bone = arm.edit_bones.new('K{:02}'.format(i+1))
+        bname = bone.name
         bone.head = [float(i+1), 0.0, 0.0]
         bone.tail = [float(i+1), 1.0, 0.0]
-        bone['frames'] = 20
-        bone['fov'] = 60.0
-        bone['camroll'] = 0
-    bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bone = arm.bones[bname]
+        bone.frames = 20
+        bone.fov = 60.0
+        bone.camroll = 0
