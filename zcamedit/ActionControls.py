@@ -15,6 +15,15 @@ class ActionPointProps(bpy.types.PropertyGroup):
     action_id: StringProperty(name = 'Action ID', default='0x0001',
         description = 'Actor action. Meaning is unique for each different actor.')
 
+def CheckGetActionList(op, context):
+    obj = context.view_layer.objects.active
+    if IsActionPoint(obj):
+        obj = obj.parent
+    if not IsActionList(obj):
+        op.report({'WARNING'}, 'Select an action list or action point.')
+        return None
+    return obj    
+
 class ZCAMEDIT_OT_add_action_point(bpy.types.Operator):
     '''Add a point to a Link or actor action list'''
     bl_idname = 'zcamedit.add_action_point'
@@ -22,8 +31,7 @@ class ZCAMEDIT_OT_add_action_point(bpy.types.Operator):
 
     def execute(self, context):
         al_object = CheckGetActionList(self, context)
-        if al_object is None:
-            op.report({'WARNING'}, 'Select an action list or action point.')
+        if not al_object:
             return {'CANCELLED'}
         AddActionPoint(context, al_object, True)
         return {'FINISHED'}
@@ -35,8 +43,7 @@ class ZCAMEDIT_OT_create_action_preview(bpy.types.Operator):
 
     def execute(self, context):
         al_object = CheckGetActionList(self, context)
-        if al_object is None:
-            op.report({'WARNING'}, 'Select an action list or action point.')
+        if not al_object:
             return {'CANCELLED'}
         CreatePreview(context, al_object.parent, al_object.zc_alist.actor_id, True)
         return {'FINISHED'}
@@ -53,18 +60,21 @@ class ZCAMEDIT_PT_action_controls_panel(bpy.types.Panel):
         layout = self.layout
         obj = context.view_layer.objects.active
         if IsActionPoint(obj):
-            layout.label(text = 'Action point:')
-            layout.prop(obj, 'zc_apoint.start_frame')
-            layout.prop(obj, 'zc_apoint.action_id')
+            r = layout.row()
+            r.label(text = 'Action point:')
+            r.prop(obj.zc_apoint, 'start_frame')
+            r.prop(obj.zc_apoint, 'action_id')
             obj = obj.parent
         if IsActionList(obj):
-            layout.label(text = 'Action list:')
-            layout.prop(obj, 'zc_alist.actor_id')
+            r = layout.row()
+            r.label(text = 'Action list:')
+            r.prop(obj.zc_alist, 'actor_id')
             layout.operator('zcamedit.add_action_point')
             layout.operator('zcamedit.create_action_preview')
         if IsPreview(obj):
-            layout.label(text = 'Preview:')
-            layout.prop(obj, 'zc_alist.actor_id')
+            r = layout.row()
+            r.label(text = 'Preview:')
+            r.prop(obj.zc_alist, 'actor_id')
         
 
 def ActionControls_register():

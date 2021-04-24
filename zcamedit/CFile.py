@@ -586,6 +586,23 @@ class CFileExport(CFileIO):
         return self.tabstr + self.ATMODE_TO_CMD[at][mode] + '_LIST(' \
             + str(start) + ', ' + str(end) + '),\n'
 
+    def WritePos(self, x, y, z):
+        x, y, z = int(round(x * self.scale)), int(round(z * self.scale)), int(round(-t * self.scale))
+        if any(v < -0x8000 or v >= 0x8000 for v in (x, y, z)):
+            raise RuntimeError('Position(s) too large, out of range: {}, {}, {}'.format(x, y, z))
+        return str(c_x) + ', ' + str(c_y) + ', ' + str(c_z)
+
+    def WriteRotU32(self, x, y, z):
+        def conv(r):
+            r /= 360.0
+            r -= floor(r)
+            if r >= 0.5: r -= 1.0
+            r = int(r * 0x10000)
+            if r < 0: r += 0x100000000
+            assert r >= 0 and r <= 0xFFFFFFFF and (r <= 0x7FFF or r >= 0xFFFF0000)
+            return hex(r)
+        return conv(x) + ', ' + conv(y) + ', ' + conv(z)
+
     def CreateCamCmd(self, c_continue, c_roll, c_frames, c_fov, c_x, c_y, c_z, at, mode):
         if self.use_cscmd:
             c_continue = 'CS_CMD_CONTINUE' if c_continue else 'CS_CMD_STOP'
@@ -595,15 +612,24 @@ class CFileExport(CFileIO):
         cmd += str(c_roll) + ', '
         cmd += str(c_frames) + ', '
         cmd += (str(c_fov) + 'f' if self.use_floats else hex(floatBitsAsInt(c_fov))) + ', '
-        c_x, c_y, c_z = int(round(c_x * self.scale)), int(round(c_z * self.scale)), int(round(-c_y * self.scale))
-        if any(v < -0x8000 or v >= 0x8000 for v in (c_x, c_y, c_z)):
-            print('Position(s) too large, out of range: {}, {}, {}'.format(c_x, c_y, c_z))
-            return None
-        cmd += str(c_x) + ', '
-        cmd += str(c_y) + ', '
-        cmd += str(c_z) + ', 0),\n'
+        cmd += self.WritePos(c_x, c_y, c_z) + ', 0),\n'
         return cmd
 
+    def CreateActionListCmd(self, actor_id, points):
+        return self.tabstr + ('CS_PLAYER_ACTION_LIST(' if actor_id < 0 else 
+            ('CS_NPC_ACTION_LIST(' + str(actor_id) + ', ')) + str(points) + '),\n'
+            
+    def CreateActionCmd(self, actor_id, action_id, start_frame, end_frame, \
+        rx, ry, rz, sx, sy, sz, ex, ey, ez):
+        cmd = self.tabstr * 2 + ('CS_PLAYER_ACTION' if actor_id < 0 else 'CS_NPC_ACTION')
+        cmd += '(' + action_id + ', '
+        cmd += str(start_frame) + ', ' + str(end_frame) + ', '
+        cmd += self.WriteRotU32(rx, ry, rz) + ', '
+        cmd += self.WritePos(sx, sy, sz) + ', '
+        cmd += self.WritePos(ex, ey, ez) + ', '
+        cmd += '0, 0, 0),\n' # "Normals" which are probably garbage data
+        return cmd
+            
     def GetAllCutsceneObjects(self):
         self.cs_objects = []
         for o in self.context.blend_data.objects:

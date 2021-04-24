@@ -57,8 +57,8 @@ def GetActorState(scene, cs_object, actorid, frame):
         points = GetActionListPoints(scene, al)
         if len(points) < 2: continue
         for i in range(len(points)-1):
-            s = points[i].start_frame
-            e = points[i+1].start_frame
+            s = points[i].zc_apoint.start_frame
+            e = points[i+1].zc_apoint.start_frame
             if e <= s: continue
             if frame <= s: continue
             if frame <= e:
@@ -109,4 +109,5 @@ def CreatePreview(context, cs_object, actor_id, select=False):
         preview.parent = cs_object
     preview.empty_display_type = 'SINGLE_ARROW'
     preview.empty_display_size = MetersToBlend(context, ActorHeightMeters(context, actor_id))
+    preview.zc_alist.actor_id = actor_id
     
