@@ -56,15 +56,20 @@ def GetCamBonesChecked(cmd):
         raise RuntimeError('Only {} bones in {}'.format(len(bones), cmd.name))
     return bones
     
-def GetFakeCamCmdLength(armo):
+def GetFakeCamCmdLength(armo, at):
     bones = GetCamBonesChecked(armo)
-    return max(2, sum(b.frames for b in bones))
+    base = max(2, sum(b.frames for b in bones))
+    # Seems to be the algorithm which was used in the canon tool: the at list
+    # counts the extra point (same frames as the last real point), and the pos
+    # list doesn't count the extra point but adds 1. Of course, neither of these
+    # values is actually the number of frames the camera motion lasts for.
+    return base + (bones[-1].frames if at else 1)
     
 def GetCSFakeEnd(context, cs_object):
     cmdlists = GetCamCommands(context.scene, cs_object)
     cs_endf = -1
     for c in cmdlists:
-        end_frame = c.data.start_frame + GetFakeCamCmdLength(c) + 1
+        end_frame = c.data.start_frame + GetFakeCamCmdLength(c, False) + 1
         cs_endf = max(cs_endf, end_frame)
     return cs_endf
     

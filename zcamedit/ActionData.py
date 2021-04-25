@@ -41,16 +41,17 @@ def GetActionListStartFrame(scene, al_object):
     if len(points) < 2: return 1000000
     return points[0].zc_apoint.start_frame
     
-def GetActionListsForID(scene, cs_object, actorid):
+def GetActionLists(scene, cs_object, actorid):
     ret = []
     for o in scene.objects:
-        if IsActionList(o) and o.parent == cs_object and o.zc_alist.actor_id == actorid:
+        if IsActionList(o) and o.parent == cs_object and (
+            actorid is None or o.zc_alist.actor_id == actorid):
             ret.append(o)
     ret.sort(key=lambda o: GetActionListStartFrame(scene, o))
     return ret
     
 def GetActorState(scene, cs_object, actorid, frame):
-    actionlists = GetActionListsForID(scene, cs_object, actorid)
+    actionlists = GetActionLists(scene, cs_object, actorid)
     pos = mathutils.Vector((0.0, 0.0, 0.0))
     rot = mathutils.Vector((0.0, 0.0, 0.0))
     for al in actionlists:
@@ -77,7 +78,7 @@ def CreateActionPoint(context, al_object, select, pos, start_frame, action_id):
     point.parent = al_object
     point.empty_display_type = 'ARROWS'
     point.location = pos
-    point.rotation_mode = 'XYZ'
+    point.rotation_mode = 'XZY'
     point.zc_apoint.start_frame = start_frame
     point.zc_apoint.action_id = action_id
     return point
