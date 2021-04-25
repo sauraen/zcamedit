@@ -88,6 +88,8 @@ class CFileIO():
         }
     }
     
+    ACTION_LISTS = ['CS_PLAYER_ACTION_LIST', 'CS_NPC_ACTION_LIST']
+    
     LISTS_DEF = [
         {'name': 'CS_CAM_POS_LIST', 'params': [
             {'name': 'startFrame', 'type': 'int'},
@@ -376,6 +378,8 @@ class CFileIO():
         if cmd['name'] in self.CAM_TYPE_LISTS:
             self.in_cam_list = True
             self.cam_list_last = False
+        elif cmd['name'] in self.ACTION_LISTS:
+            self.in_action_list = True
         if 'entries' in cmd:
             self.list_nentries = cmd['entries']
             self.list_entrycount = 0
@@ -398,6 +402,7 @@ class CFileIO():
         if self.in_cam_list and not self.cam_list_last:
             raise RuntimeError('Camera list terminated without stop marker!')
         self.in_cam_list = False
+        self.in_action_list = False
         
     def OnCutsceneEnd(self):
         if self.nentries != self.entrycount:
@@ -455,7 +460,7 @@ class CFileImport(CFileIO):
         def conv(r):
             assert r >= -0x8000 and r <= 0x7FFF
             return 2.0 * math.pi * float(r) / 0x10000
-        return [conv(rot[0]), -conv(rot[2]), conv(rot[1])]
+        return [conv(rot[0]), conv(rot[2]), -conv(rot[1])]
     
     def CSToBlender(self, csname, poslists, atlists, actionlists):
         # Create empty cutscene object
@@ -648,7 +653,7 @@ class CFileExport(CFileIO):
             if r >= 0x8000: r += 0xFFFF0000
             assert r >= 0 and r <= 0xFFFFFFFF and (r <= 0x7FFF or r >= 0xFFFF8000)
             return hex(r)
-        return conv(rot[0]) + ', ' + conv(rot[2]) + ', ' + conv(-rot[1])
+        return conv(rot[0]) + ', ' + conv(-rot[2]) + ', ' + conv(rot[1])
 
     def CreateCamCmd(self, c_continue, c_roll, c_frames, c_fov, pos, at, mode):
         if self.use_cscmd:
@@ -738,7 +743,7 @@ class CFileExport(CFileIO):
             if self.cs_object is not None and not self.wrote_cam_lists:
                 self.WriteCamMotion(self.cs_object)
                 self.wrote_cam_lists = True
-        elif cmd['name'] in ['CS_PLAYER_ACTION_LIST', 'CS_NPC_ACTION_LIST']:
+        elif cmd['name'] in self.ACTION_LISTS:
             if self.cs_object is not None and not self.wrote_action_lists:
                 self.WriteActionLists(self.cs_object)
                 self.wrote_action_lists = True
@@ -780,6 +785,7 @@ class CFileExport(CFileIO):
             if len(points) < 2:
                 raise RuntimeError('Action ' + al_object.name + ' does not have at least 2 key points!')
             self.cs_text += self.CreateActionListCmd(actor_id, len(points) - 1)
+            self.entrycount_write += 1
             for p in range(len(points) - 1):
                 self.cs_text += self.CreateActionCmd(actor_id, 
                     points[p].zc_apoint.action_id, 
