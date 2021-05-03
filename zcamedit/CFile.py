@@ -367,6 +367,7 @@ class CFileIO():
         self.first_cs_cmd = True
         self.curlist = None
         self.in_cam_list = False
+        self.in_action_list = False
         self.entrycount = 0
         
     def OnNonListCmd(self, l, cmd):

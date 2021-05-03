@@ -18,6 +18,7 @@ class ZCAMEDIT_OT_import_c(bpy.types.Operator, ImportHelper):
         if ret is not None:
             self.report({'WARNING'}, ret)
             return {'CANCELLED'}
+        self.report({'INFO'}, 'Import successful')
         return {'FINISHED'}
 
 class ZCAMEDIT_OT_export_c(bpy.types.Operator, ExportHelper):
@@ -50,6 +51,7 @@ class ZCAMEDIT_OT_export_c(bpy.types.Operator, ExportHelper):
         if ret is not None:
             self.report({'WARNING'}, ret)
             return {'CANCELLED'}
+        self.report({'INFO'}, 'Export successful')
         return {'FINISHED'}
 
 def menu_func_import(self, context):
