@@ -106,8 +106,8 @@ def CreateActorAction(context, actor_id, cs_object):
     
 def CreateDefaultActorAction(context, actor_id, cs_object):
     al_object = CreateActorAction(context, actor_id, cs_object)
-    AddActionPoint(context, al_object, False)
-    AddActionPoint(context, al_object, False)
+    CreateDefaultActionPoint(context, al_object, False)
+    CreateDefaultActionPoint(context, al_object, False)
 
 def CreateOrInitPreview(context, cs_object, actor_id, select=False):
     for o in context.blend_data.objects:

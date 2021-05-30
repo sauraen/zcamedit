@@ -4,16 +4,97 @@ Copyright (C) 2021 Sauraen
 
 GPL V3 licensed, see LICENSE.txt
 
+zcamedit can import, edit, and export *positional* cutscene commands from scenes
+in Zelda 64 (OoT and MM, only OoT has been tested). This means
+- camera motion (all types)
+- Link actions
+- NPC actions
+
+zcamedit does not support non-positional cutscene commands, such as text boxes,
+music commands, etc. For these, install [fast64](https://bitbucket.org/kurethedead/fast64/src/master/).
+Please be sure to update your fast64 installation regularly, as several members
+of the community are contributing bugfixes and new features.
+
+zcamedit imports from and exports to C files. For export, it writes into an
+existing C file, overwriting only the camera / action commands within the
+cutscene data in those scenes. This means you can edit cutscenes in the base
+game, as well as create new cutscenes in existing scenes in the base game.
+If working on a new map in fast64, there are two export steps: saving the scene
+as C with fast64 (including the non-positional cutscene commands), and then
+exporting into that same C file with zcamedit.
+
 ## Installation
 
 This is a Blender plugin for 2.80+. Copy the zcamedit directory to your Blender
 plugins directory, then start Blender, go to Preferences > Addons, and search
 for and enable zcamedit.
 
-## Important things to know
+## Importing
 
-Your scene should be set to 20 FPS and 320x240 render. If you import, this will
-be set up automatically.
+File > Import > z64 cutscene C source. Choose a scene C file and you'll get all
+the cutscenes in that file. This is a good way to get started with zcamedit, to
+see how cutscenes are organized.
+
+## Exporting
+
+These settings must match your build toolchain, whether you are using decomp
+or z64ovl.
+- Use Floats: whether to write camera FoV values as float or as int-encoded
+float.
+- Use Tabs: whether to use tabs or 4 spaces for indentation in the C file.
+- Use CS_CMD defines: Use `CS_CMD_CONTINUE` / `CS_CMD_STOP` or 0 / -1 for
+camera key frames.
+
+## Setting up a Cutscene
+
+If you're creating a new scene for a romhack:
+
+1. Create an empty called Cutscene.YourCutsceneNameHere, parented to your Scene
+empty object. If you're using fast64, the cutscene name (determine by fast64's
+export process) will be something like YourSceneName_scene_header00_cutscene.
+If you want to find out what this is specifically, just export the scene with
+fast64 and then look in the C code. Note that you can have as many cutscenes as
+you want per scene.
+
+2. The controls for most things are in the Object Properties pane (orange
+square). Select the cutscene empty and click Init Cutscene Empty. This will set
+up a camera and previewers for all your actions, and some other scene
+properties. You can click this later too, it doesn't erase anything.
+
+3. Click "Create camera shot", "Create Link action list", or "Create actor (NPC)
+action list".
+
+### Camera Shots
+
+A shot is a continuous camera motion, represented by an armature, where the head
+of each bone is the camera position and the tail is the look-at (called "at")
+position for a key point. Due to the game's spline algorithm for camera motion,
+you always need one more key point at each end, to define how the camera is
+moving when it approaches the last normal point. So, the minimum number of bones
+in the armature is 4, if you want the camera to move between the positions
+indicated by bones 2 to 3. (More info below if you're curious on the details.)
+
+When the shot / armature is selected, in the Object Properties pane there are
+controls for the start frame of that shot and whether it's normal, relative to
+Link, or 0x7 / 0x8 (unknown mode). When a particular key point / bone is
+selected, you have controls for the number of frames, FoV, and roll of the
+camera at that position.
+
+At export, camera shots are sorted by name, so you should name them with
+something they will be in the correct order with at export (e.g. Shot01, Shot02,
+etc.) Also, the bones / key frames are also sorted by name, so their names must
+be in the order you want the motion to have. These should both be previewed
+correctly (i.e. if it looks right in Blender, it should work right in game)--
+if there's any issues, let me know.
+
+### Previewing Camera Motion
+
+When you import or click Init Cutscene Empty, a camera is created or moved to
+be a child of the cutscene. This camera previews the camera motion in game,
+using the exact same algorithm (see below for the nasty details). Create a new
+3D view and in that view, select the camera and click View > Cameras > Active
+Camera. Then, you will get a preview of the real camera motion based on the
+Blender timeline time (i.e. play, pause, adjust the frame on the timeline).
 
 If the preview camera moves to the origin aiming downwards, this means
 "undefined camera position", which can be caused by three things.
@@ -31,7 +112,30 @@ system terminal, but to avoid spamming you with GUI error messages every frame
 in scenes you're not using this plugin in, there are no GUI error messages for
 these kinds of issues.
 
-## How the in-game cutscene camera system works
+### Link / Actor (NPC) Actions
+
+The actor ID for an actor/NPC action is not the normal actor number. Look in
+z_demo.c for the complete list. These numbers select which of 10 slots the
+action values get written into. (Link has his own slot.) Then, each actor reads
+from whatever slot it wants to, and changes its own behavior based on the value.
+
+Each action is from a point to the next point. So, the minimum number of points
+is 2, and you always need an extra point at the end. The Action ID values are
+specific to each actor. In addition to start frame and action ID, each action
+point has a position and rotation, which you can edit directly in the Blender
+scene.
+
+### Previewing Link / Actor (NPC) Actions
+
+Click "Create preview object for action" to add a previewer object. This is an
+empty object which will get animated when you play the Blender scene. It merely
+moves between key frames with the starting rotation.
+
+## Details
+
+You don't have to read this stuff if you just want to use the plugin.
+
+### How the in-game cutscene camera system works
 
 The camera system in game is weird--this is partly why this previewer exists. 
 If the previewer is not behaving as you expect, it's probably working correctly!
@@ -129,106 +233,19 @@ between B and C, it doesn't move 1/20th of the way per frame, it moves
 positional halfway point less than half the total number of frames it actually
 takes to get from B to C.
 
-
-## Scene structure
-
-The structure should look like this:
-
-#### Empty object, named "Cutscene.YourCutsceneNameHere". Represents a cutscene.
-* Camera. Gets animated for preview. Not exported.
-* Armature. Represents one camera command (contiguous camera shot).
-    * Bone. Represents a camera key point.
-    * Bone.
-    * Etc.
-* Another armature if you want another camera command.
-* Etc.
-#### Another cutscene.
-#### Etc.
-
-## Cutscene empty object
-
-This represents a cutscene. Its name in Blender must start with "Cutscene.",
-e.g. "Cutscene.YourCutsceneNameHere", in which case its name in C will be
-YourCutsceneNameHere. There can be as many of these as you want per blend scene
-/ file.
-
-## Preview camera
-
-Name can be anything, but each cutscene object should only have one camera as a
-child of it. This camera will get animated based on the cutscene. This is not
-exported.
-
-You can use one camera and just switch which cutscene it's parented to to
-preview different cutscenes.
-
-## Armature / camera command
-
-These will be sorted and processed in name order, so recommend naming them
-something like Shot01, Shot02, etc. or something else with a sortable name
-order. This is important because it's possible for a cutscene to have two
-commands starting on the same frame, and the first one in the cutscene binary
-data will get used by the game engine, so we have to be able to control their
-order.        
-
-Each armature must have the custom properties described below. Click
-"Init Armature & Bone Props" in the "zcamedit Armature Controls" panel within
-the armature properties window to create and initialize these. This will only
-create them if they don't exist, so clicking it again won't overwrite your
-settings if you've already set them.
-
-#### start_frame
-
-The camera action actually starts on frame start_frame+1.
-
 #### end_frame
 
 There is also an end_frame parameter in the cutscene data, however it is almost
-useless, so it is not included as a custom property in the armature. If you
-don't care about the coding, you can skip the rest of this section.
-
-The end_frame parameter does not end or stop the camera command--running out of
+useless, so it is not included as a custom property in the armature. The 
+end_frame parameter does not end or stop the camera command--running out of
 key points, or another camera command starting, is what does. It's only checked
 when the camera command starts. In a normal cutscene where time starts from 0
 and advances one frame at a time, as long as end_frame >= start_frame + 2, the
 command will work the same.
 
 So, this plugin just sets it to a "reasonable value" on export, and just
-asserted for validity on import. The "reasonable value" chosen is the sum of the
-`frames` values of all the key points plus 1, though this is not the number of
-frames the camera command actually lasts for! It seems the original developers'
+asserted for validity on import. It seems the original developers'
 tool used the sum of all the points--including the second extra point--as the
 end_frame parameter for CS_CAM_FOCUS_POINT_LIST, and used the sum of all the
 points without the second extra point, plus 1, for the CS_CAM_POS_LIST. (Oh
-yeah, did I mention they're different?)
-
-#### rel_link
-
-rel_link is a boolean for whether the camera command is normal (False)
-(0x01 and 0x02) or relative to Link (True) (0x05 and 0x06). Not yet implemented.
-
-## Bone
-
-The head of each bone represents a camera position and the tail
-represents a camera focus point. The order of the bones as determined
-by their names represents the order of the key points, so they should
-be named something like K01, K02, or anything else with sortable names.
-
-Each bone must have the following custom properties. The "Init Armature & Bone 
-Props" button mentioned above will also add these custom properties to all 
-bones. It won't mess with existing values so you should click it any time you
-add bones.
-
-#### frames
-
-Roughly how many frames the camera should spend near this key point, see above.
-
-#### fov
-
-Camera FOV in degrees. 45.0 and 60.0 are some common values.
-
-#### camroll
-
-The roll (rotation around its axis) of the camera. For technical reasons, bone
-roll is not used as camera roll. (Also bone roll changes whenever you edit the
-bone anyway, so it'd be kinda a pain.) Positive values turn the image clockwise
-(turn the camera body counterclockwise).
+yeah, did I mention they're different?) So the plugin replicates this behavior.
