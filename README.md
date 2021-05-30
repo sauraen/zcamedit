@@ -87,6 +87,12 @@ be in the order you want the motion to have. These should both be previewed
 correctly (i.e. if it looks right in Blender, it should work right in game)--
 if there's any issues, let me know.
 
+When you add a new bone, e.g. by duplicating the last bone in the sequence, you
+must switch out of edit mode and back in for the previewer to properly handle
+that new bone. This only needs to be done after adding bones; you can preview
+while editing bones normally. This is due to how Blender represents bones
+differently in edit vs. object mode, and can't be fixed easily in the plugin.
+
 ### Previewing Camera Motion
 
 When you import or click Init Cutscene Empty, a camera is created or moved to
