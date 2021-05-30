@@ -22,8 +22,8 @@ def InitCS(context, cs_object):
         camo.parent = cs_object
         camo.data.display_size = MetersToBlend(context, 0.25)
         camo.data.passepartout_alpha = 0.95
-        camo.data.clip_start = 1e-3
-        camo.data.clip_end = 200.0
+        camo.data.clip_start = MetersToBlend(context, 1e-3)
+        camo.data.clip_end = MetersToBlend(context, 200.0)
     # Preview actions
     for o in context.blend_data.objects:
         if IsActionList(o):

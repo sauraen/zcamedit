@@ -83,8 +83,9 @@ def CreateShot(context, cs_object):
         bpy.ops.object.mode_set(mode='EDIT')
         bone = arm.edit_bones.new('K{:02}'.format(i+1))
         bname = bone.name
-        bone.head = [float(i+1), 0.0, 0.0]
-        bone.tail = [float(i+1), 1.0, 0.0]
+        x = MetersToBlend(context, float(i+1))
+        bone.head = [x, 0.0, 0.0]
+        bone.tail = [x, MetersToBlend(context, 1.0), 0.0]
         bpy.ops.object.mode_set(mode='OBJECT')
         bone = arm.bones[bname]
         bone.frames = 20
