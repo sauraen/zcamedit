@@ -43,7 +43,7 @@ class CFileIO():
     ]
     
     BGM_PARAMS = [
-        {'name': 'id', 'type': 'int'},
+        {'name': 'id', 'type': 'string'},
         {'name': 'startFrame', 'type': 'int'},
         {'name': 'endFrame', 'type': 'int'},
         {'name': 'unused0', 'type': 'int'},
