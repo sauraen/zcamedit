@@ -461,7 +461,7 @@ class CFileImport(CFileIO):
         def conv(r):
             assert r >= -0x8000 and r <= 0x7FFF
             return 2.0 * math.pi * float(r) / 0x10000
-        return [conv(rot[0]), conv(rot[2]), -conv(rot[1])]
+        return [conv(rot[0]), conv(rot[2]), conv(rot[1])]
     
     def CSToBlender(self, csname, poslists, atlists, actionlists):
         # Create empty cutscene object
@@ -654,7 +654,7 @@ class CFileExport(CFileIO):
             if r >= 0x8000: r += 0xFFFF0000
             assert r >= 0 and r <= 0xFFFFFFFF and (r <= 0x7FFF or r >= 0xFFFF8000)
             return hex(r)
-        return conv(rot[0]) + ', ' + conv(-rot[2]) + ', ' + conv(rot[1])
+        return conv(rot[0]) + ', ' + conv(rot[2]) + ', ' + conv(rot[1])
 
     def CreateCamCmd(self, c_continue, c_roll, c_frames, c_fov, pos, at, mode):
         if self.use_cscmd:
