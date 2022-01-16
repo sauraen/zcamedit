@@ -10,18 +10,18 @@ in Zelda 64 (OoT and MM, only OoT has been tested). This means
 - Link actions
 - NPC actions
 
-zcamedit does not support non-positional cutscene commands, such as text boxes,
-music commands, etc. For these, install [fast64](https://github.com/Fast-64/fast64).
-Please be sure to update your fast64 installation regularly, as several members
-of the community are contributing bugfixes and new features.
+You should always have [fast64](https://github.com/Fast-64/fast64) installed,
+which is needed to edit non-positional cutscene commands, such as text boxes,
+music commands, etc. Please be sure to update your fast64 installation regularly,
+as several members of the community are contributing bugfixes and new features.
 
-zcamedit imports from and exports to C files. For export, it writes into an
-existing C file, overwriting only the camera / action commands within the
+zcamedit imports from and exports to C files. For export, it writes **into an
+existing C file**, overwriting only the camera / action commands within the
 cutscene data in those scenes. This means you can edit cutscenes in the base
 game, as well as create new cutscenes in existing scenes in the base game.
-If working on a new map in fast64, there are two export steps: saving the scene
-as C with fast64 (including the non-positional cutscene commands), and then
-exporting into that same C file with zcamedit.
+If working on a new map in fast64, there are **two export steps**: saving the
+scene as C with fast64 (including the non-positional cutscene commands), and
+then exporting into that same C file with zcamedit.
 
 ## Installation
 
@@ -58,16 +58,11 @@ camera key frames.
 
 If you're creating a new scene for a romhack:
 
-1. Create an empty called Cutscene.YourCutsceneNameHere, parented to your Scene
-empty object. If you're using fast64, the cutscene name (determine by fast64's
-export process) will be something like YourSceneName_scene_header00_cutscene.
-If you want to find out what this is specifically, just export the scene with
-fast64 and then look in the C code. Note that you can have as many cutscenes as
-you want per scene.
+1. Create an empty, not parented to anything and at the origin. Using fast64
+controls, set its empty type to Cutscene.
 
-2. The controls for most things are in the Object Properties pane (orange
-square). Select the cutscene empty and click Init Cutscene Empty. This will set
-up a camera and previewers for all your actions, and some other scene
+2. Click Init Cutscene Empty (this is the zcamedit init for this object). This
+will set up a camera and previewers for all your actions, and some other scene
 properties. You can click this later too, it doesn't erase anything.
 
 3. Click "Create camera shot", "Create Link action list", or "Create actor (NPC)
