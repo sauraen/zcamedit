@@ -25,9 +25,18 @@ exporting into that same C file with zcamedit.
 
 ## Installation
 
-This is a Blender plugin for 2.80+. Copy the zcamedit directory to your Blender
-plugins directory, then start Blender, go to Preferences > Addons, and search
-for and enable zcamedit.
+This is a Blender plugin for 2.80+.
+
+### Easy installation
+
+Download the Github repo as a ZIP file, then go to Preferences > Addons, click
+Install, and select the ZIP file.
+
+### Preferred installation (Linux only)
+
+Clone the repo to your OoT romhack tools directory. Create a symlink from
+/home/your_name/.config/blender/(version)/scripts/addons/zcamedit to the repo
+directory you cloned.
 
 ## Importing
 
