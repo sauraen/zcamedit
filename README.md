@@ -11,7 +11,7 @@ in Zelda 64 (OoT and MM, only OoT has been tested). This means
 - NPC actions
 
 zcamedit does not support non-positional cutscene commands, such as text boxes,
-music commands, etc. For these, install [fast64](https://bitbucket.org/kurethedead/fast64/src/master/).
+music commands, etc. For these, install [fast64](https://github.com/Fast-64/fast64).
 Please be sure to update your fast64 installation regularly, as several members
 of the community are contributing bugfixes and new features.
 
