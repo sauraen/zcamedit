@@ -10,11 +10,11 @@ bl_info = {
 }
 
 import bpy
-from .CSControls import CSControls_register, CSControls_unregister
-from .CamControls import CamControls_register, CamControls_unregister
-from .ActionControls import ActionControls_register, ActionControls_unregister
-from .Preview import Preview_register, Preview_unregister
-from .ImportExportControls import ImportExportControls_register, ImportExportControls_unregister
+from .zcamedit.CSControls import CSControls_register, CSControls_unregister
+from .zcamedit.CamControls import CamControls_register, CamControls_unregister
+from .zcamedit.ActionControls import ActionControls_register, ActionControls_unregister
+from .zcamedit.Preview import Preview_register, Preview_unregister
+from .zcamedit.ImportExportControls import ImportExportControls_register, ImportExportControls_unregister
 
 def register():
     CSControls_register()
