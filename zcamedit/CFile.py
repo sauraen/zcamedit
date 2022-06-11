@@ -37,9 +37,9 @@ class CFileIO():
         {'name': 'endX', 'type': 'int', 'width': 32},
         {'name': 'endY', 'type': 'int', 'width': 32},
         {'name': 'endZ', 'type': 'int', 'width': 32},
-        {'name': 'normX', 'type': 'int', 'width': 32},
-        {'name': 'normY', 'type': 'int', 'width': 32},
-        {'name': 'normZ', 'type': 'int', 'width': 32}
+        {'name': 'normX', 'type': 'int_or_float', 'width': 32},
+        {'name': 'normY', 'type': 'int_or_float', 'width': 32},
+        {'name': 'normZ', 'type': 'int_or_float', 'width': 32}
     ]
     
     BGM_PARAMS = [
@@ -284,7 +284,7 @@ class CFileIO():
     def ParseParams(self, cmddef, l):
         assert l.startswith(cmddef['name'] + '(')
         assert l.endswith('),')
-        toks = [t for t in l[len(cmddef['name'])+1:-2].split(', ') if t]
+        toks = [t.strip() for t in l[len(cmddef['name'])+1:-2].split(',') if t.strip()]
         if len(toks) != len(cmddef['params']):
             raise RuntimeError('Command ' + cmddef['name'] + ' requires ' 
                 + str(len(cmddef['params'])) + ' params but only ' + str(len(toks))
@@ -298,6 +298,8 @@ class CFileIO():
                     raise RuntimeError('Invalid numeric value for ' + p['name'] + ' in ' + l)
                 width = p.get('width', 16)
                 if width == 16 and value >= 0xFFFF8000 and value <= 0xFFFFFFFF:
+                    value -= 0x100000000
+                elif width == 8 and value >= 0xFFFFFF80 and value <= 0xFFFFFFFF:
                     value -= 0x100000000
                 elif value >= (1 << width) or value < -(1 << (width - 1)):
                     raise RuntimeError('Value out of range for ' + p['name'] + ' in ' + l)
@@ -313,7 +315,7 @@ class CFileIO():
             elif p['type'] == 'int_or_float':
                 if t.startswith('0x'):
                     value = intBitsAsFloat(int(t, 16))
-                elif toks[3].endswith('f'):
+                elif t.endswith('f'):
                     value = float(t[:-1])
                     if not math.isfinite(value):
                         raise RuntimeError('Invalid float value for ' + p['name'] + ' in ' + l)
@@ -413,7 +415,21 @@ class CFileIO():
     def TraverseInputFile(self, filename):
         state = 'OutsideCS'
         with open(filename, 'r') as infile:
+            # Merge lines which were broken as long lines
+            lines = []
+            parenopen = 0
             for l in infile:
+                if parenopen < 0 or parenopen > 5:
+                    raise RuntimeError('Parentheses parsing failed near line: ' + l)
+                elif parenopen > 0:
+                    lines[-1] += ' ' + l
+                else:
+                    lines.append(l)
+                parenopen += l.count('(')
+                parenopen -= l.count(')')
+            if parenopen != 0:
+                raise RuntimeError('Unbalanced parentheses by end of file')
+            for l in lines:
                 if state == 'OutsideCS':
                     csname = self.IsGetCutsceneStart(l)
                     if csname is not None:

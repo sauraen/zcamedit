@@ -19,9 +19,12 @@ zcamedit imports from and exports to C files. For export, it writes **into an
 existing C file**, overwriting only the camera / action commands within the
 cutscene data in those scenes. This means you can edit cutscenes in the base
 game, as well as create new cutscenes in existing scenes in the base game.
-If working on a new map in fast64, there are **two export steps**: saving the
-scene as C with fast64 (including the non-positional cutscene commands), and
-then exporting into that same C file with zcamedit.
+If working on a new map in fast64, there are **two export steps**:
+- In the fast64 OoT tools pane, `Export Scene` or `Export Cutscene` (this
+  exports the non-positional cutscene commands)
+- File > Export > z64 cutscene C source (zcamedit export), and choose the same
+  C file you exported in the last step. zcamedit will write the positional
+  cutscene commands into the existing cutscenes in that file.
 
 ## Installation
 
@@ -45,6 +48,8 @@ the cutscenes in that file. This is a good way to get started with zcamedit, to
 see how cutscenes are organized.
 
 ## Exporting
+
+File > Export > z64 cutscene C source.
 
 These settings must match your build toolchain, whether you are using decomp
 or z64ovl.
