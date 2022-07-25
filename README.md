@@ -41,6 +41,23 @@ Clone the repo to your OoT romhack tools directory. Create a symlink from
 /home/your_name/.config/blender/(version)/scripts/addons/zcamedit to the repo
 directory you cloned.
 
+## FAQs
+
+### The camera preview in Blender isn't following where I have the bones! Or:
+### The cutscene sort of works in game, but the positions are all wrong!
+
+1. Make sure your **scene empty object**, **room empty object**, and **cutscene
+empty object** are all at the Blender origin. You can usually do this with a
+combination of Object > Clear > Origin and Alt+G. Maybe Object > Apply > All
+Transforms if that doesn't work. If your room empty object is 1 meter below
+your scene empty object, as fast64 does by default, that offset will be applied
+to everything in game and then the zcamedit stuff will not be at the correct
+relative position.
+2. If you moved / rotated / etc. one of the camera shots / armatures in object
+mode, this transformation will be ignored. You can fix this by selecting the
+shot / armature in object mode and clicking Object > Apply > All Transforms.
+That will convert the transform to actual changed positions for each bone.
+
 ## Importing
 
 File > Import > z64 cutscene C source. Choose a scene C file and you'll get all
