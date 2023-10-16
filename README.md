@@ -1,3 +1,10 @@
+# zcamedit is now merged into fast64!
+
+There is no need to use this plugin anymore. Its functionality has been merged
+into fast64 by @Yanis42.
+
+## Old info
+
 zcamedit - Zelda 64 (OoT/MM) cutscene camera editor Blender plugin
 
 Copyright (C) 2021 Sauraen
